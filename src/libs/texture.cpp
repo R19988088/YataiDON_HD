@@ -328,8 +328,8 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                     ++loaded_count;
 
                 } else {
-                    spdlog::error("Texture %s was not found in %s",
-                           tex_name.c_str(), folder.string().c_str());
+                    spdlog::error("Texture {} was not found in {}",
+                           tex_name, folder.string());
                 }
             }
 

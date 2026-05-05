@@ -1167,7 +1167,7 @@ const std::map<int, std::string> TJAParser::DIFFS = {
 
 void modifier_speed(NoteList& notes, float value) {
     for (auto& note : notes.notes) {
-        note.scroll_x *= value;
+        note.scroll_x *= (value / 10.0f);
     }
 }
 

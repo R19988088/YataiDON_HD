@@ -165,11 +165,11 @@ void ResultPlayer::draw_modifiers() {
     } else if (global_data.modifiers[(int)player_num].random == 2) {
         tex.draw_texture(SCORE::MOD_DETARAME, {.index=is_2p});
     }
-    if (global_data.modifiers[(int)player_num].speed >= 4) {
+    if (global_data.modifiers[(int)player_num].speed >= 40) {
         tex.draw_texture(SCORE::MOD_YONBAI, {.index=is_2p});
-    } else if (global_data.modifiers[(int)player_num].speed >= 3) {
+    } else if (global_data.modifiers[(int)player_num].speed >= 30) {
         tex.draw_texture(SCORE::MOD_SANBAI, {.index=is_2p});
-    } else if (global_data.modifiers[(int)player_num].speed > 1) {
+    } else if (global_data.modifiers[(int)player_num].speed > 10) {
         tex.draw_texture(SCORE::MOD_BAISAKU, {.index=is_2p});
     }
 }

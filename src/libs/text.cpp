@@ -490,8 +490,8 @@ void OutlinedText::draw(const DrawTextureParams& params) {
 
     ray::Rectangle src = {0, 0, (float)texture->width, (float)texture->height};
     ray::Rectangle dst = {
-        params.x,
-        params.y,
+        params.x + x_offset,
+        params.y + y_offset,
         (float)texture->width  + params.x2,
         (float)texture->height + params.y2
     };

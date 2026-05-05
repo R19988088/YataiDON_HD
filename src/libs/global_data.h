@@ -53,7 +53,7 @@ enum class Rank {
 
 struct Modifiers {
     bool auto_play = false;
-    float speed = 1.0f;
+    int speed = 10;
     bool display = false;
     bool inverse = false;
     int random = 0;

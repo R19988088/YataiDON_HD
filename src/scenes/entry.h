@@ -35,9 +35,6 @@ private:
     bool announce_played;
     std::vector<std::unique_ptr<EntryPlayer>> players;
 
-    std::unique_ptr<OutlinedText> text_cancel;
-    std::unique_ptr<OutlinedText> text_question;
-
     void draw_background();
     void draw_side_select(float fade);
     void draw_player_drum();

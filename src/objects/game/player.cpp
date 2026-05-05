@@ -1340,11 +1340,11 @@ void Player::draw_modifiers(float y) {
         tex.draw_texture(LANE::MOD_SHINUCHI, {.y=y});
     }
 
-    if (modifiers.speed >= 4) {
+    if (modifiers.speed >= 40) {
         tex.draw_texture(LANE::MOD_YONBAI, {.y=y});
-    } else if (modifiers.speed >= 3) {
+    } else if (modifiers.speed >= 30) {
         tex.draw_texture(LANE::MOD_SANBAI, {.y=y});
-    } else if (modifiers.speed > 1) {
+    } else if (modifiers.speed > 10) {
         tex.draw_texture(LANE::MOD_BAISAKU, {.y=y});
     }
 

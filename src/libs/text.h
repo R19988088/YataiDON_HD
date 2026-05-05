@@ -42,6 +42,8 @@ private:
 public:
     float width  = 0.0f;
     float height = 0.0f;
+    float x_offset = 0.0f;
+    float y_offset = 0.0f;
 
     OutlinedText(std::string text, int font_size,
                  ray::Color color, ray::Color outline_color,

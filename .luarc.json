@@ -1,6 +1,3 @@
 {
-    "diagnostics.globals": [
-        "tex",
-        "anim"
-    ]
+  "diagnostics.globals": ["tex", "anim", "text"]
 }

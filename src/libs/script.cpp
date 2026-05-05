@@ -1,4 +1,6 @@
 #include "script.h"
+#include "global_data.h"
+#include "text.h"
 #include <spdlog/spdlog.h>
 
 void ScriptManager::init(fs::path script_path) {
@@ -309,6 +311,8 @@ void ScriptManager::register_lua_bindings() {
 
         sol::table info = script_manager.lua->create_table();
         info["name"] = tex_obj->name;
+        info["x"] = tex_obj->x;
+        info["y"] = tex_obj->y;
         info["width"] = tex_obj->width;
         info["height"] = tex_obj->height;
 
@@ -380,6 +384,84 @@ void ScriptManager::register_lua_bindings() {
     });
 
     lua["tex"] = tex;
+
+    lua.new_usertype<OutlinedText>("OutlinedText",
+        "width",          &OutlinedText::width,
+        "height",         &OutlinedText::height,
+        "is_ready",       &OutlinedText::is_ready,
+        "upload_pending", &OutlinedText::upload_pending,
+        "finish",         &OutlinedText::finish,
+        "draw",           [](OutlinedText& self, sol::optional<sol::table> params_table) {
+            DrawTextureParams params;
+            if (params_table) {
+                sol::table t = params_table.value();
+                sol::optional<sol::table> color = t["color"];
+                if (color) {
+                    params.color.r = color.value()[1].get_or(params.color.r);
+                    params.color.g = color.value()[2].get_or(params.color.g);
+                    params.color.b = color.value()[3].get_or(params.color.b);
+                    params.color.a = color.value()[4].get_or(params.color.a);
+                }
+                params.frame    = t["frame"].get_or(params.frame);
+                params.scale    = t["scale"].get_or(params.scale);
+                params.center   = t["center"].get_or(params.center);
+                params.x        = t["x"].get_or(params.x);
+                params.y        = t["y"].get_or(params.y);
+                params.x2       = t["x2"].get_or(params.x2);
+                params.y2       = t["y2"].get_or(params.y2);
+                params.rotation = t["rotation"].get_or(params.rotation);
+                params.fade     = t["fade"].get_or(params.fade);
+                params.index    = t["index"].get_or(params.index);
+                sol::optional<std::string> mirror = t["mirror"];
+                if (mirror) {
+                    params.mirror = mirror.value();
+                }
+                sol::optional<sol::table> origin = t["origin"];
+                if (origin) {
+                    params.origin.x = origin.value()[1].get_or(params.origin.x);
+                    params.origin.y = origin.value()[2].get_or(params.origin.y);
+                }
+                sol::optional<sol::table> src = t["src"];
+                if (src) {
+                    ray::Rectangle rect;
+                    rect.x      = src.value()["x"].get_or(0.0f);
+                    rect.y      = src.value()["y"].get_or(0.0f);
+                    rect.width  = src.value()["width"].get_or(0.0f);
+                    rect.height = src.value()["height"].get_or(0.0f);
+                    params.src  = rect;
+                }
+            }
+            self.draw(params);
+        }
+    );
+
+    sol::table text = lua.create_table();
+    text.set_function("create_text", [](const std::string& skin_config_key, std::array<int, 4> color,
+        std::array<int, 4> outline_color, bool is_vertical, int outline_thickness, float spacing) -> std::unique_ptr<OutlinedText> {
+            auto config_it = script_manager.tex.skin_config.find(skin_config_map.at(skin_config_key));
+            if (config_it == script_manager.tex.skin_config.end()) {
+                spdlog::error("Skin config key not found: {}", skin_config_key);
+                return nullptr;
+            }
+            int font_size = config_it->second.font_size;
+            std::string text = config_it->second.text[global_data.config->general.language];
+            ray::Color color_val;
+            color_val.r = color[0];
+            color_val.g = color[1];
+            color_val.b = color[2];
+            color_val.a = color[3];
+            ray::Color outline_color_val;
+            outline_color_val.r = outline_color[0];
+            outline_color_val.g = outline_color[1];
+            outline_color_val.b = outline_color[2];
+            outline_color_val.a = outline_color[3];
+            std::unique_ptr<OutlinedText> ptr = std::make_unique<OutlinedText>(text, font_size, color_val, outline_color_val, is_vertical, outline_thickness, spacing);
+            ptr->x_offset = config_it->second.x;
+            ptr->y_offset = config_it->second.y;
+            return ptr;
+    });
+
+    lua["text"] = text;
 }
 
 ScriptManager script_manager;

@@ -20,11 +20,6 @@ void EntryScreen::on_screen_start() {
     players.clear();
     players.resize(2);
 
-    std::string lang = global_data.config->general.language;
-    auto& skin = tex.skin_config;
-    text_cancel = std::make_unique<OutlinedText>(skin[SC::ENTRY_CANCEL].text[lang], skin[SC::ENTRY_CANCEL].font_size, ray::WHITE, ray::BLACK, false, 4, -4);
-    text_question = std::make_unique<OutlinedText>(skin[SC::ENTRY_QUESTION].text[lang], skin[SC::ENTRY_QUESTION].font_size, ray::WHITE, ray::BLACK, false, 4, -1);
-
     audio->play_sound("bgm", "music");
 }
 
@@ -129,18 +124,7 @@ void EntryScreen::draw_side_select(float fade) {
     auto& skin = tex.skin_config;
     lua_entry.draw_side_select(side);
 
-    text_question->draw({
-        .x=skin[SC::ENTRY_QUESTION].x - text_question->width / 2,
-        .y=skin[SC::ENTRY_QUESTION].y,
-        .fade=fade,
-    });
-
     //chara->draw(skin["chara_entry"].x, skin["chara_entry"].y);
-
-    auto& tex_obj = tex.textures[SIDE_SELECT::CANCEL];
-    float text_x = tex_obj->x[0] + ((float)tex_obj->width / 2) - (text_cancel->width / 2);
-    float text_y = tex_obj->y[0] + ((float)tex_obj->height / 2) - (text_cancel->height / 2);
-    text_cancel->draw({.x=text_x, .y=text_y, .fade=fade});
     nameplate.draw(skin[SC::NAMEPLATE_ENTRY].x, skin[SC::NAMEPLATE_ENTRY].y, fade);
 }
 

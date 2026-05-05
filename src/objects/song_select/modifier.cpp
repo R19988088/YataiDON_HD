@@ -62,24 +62,24 @@ ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num
 
     text_true      = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
     text_false     = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
-    text_speed     = make_text(std::to_string(global_data.modifiers[(int)player_num].speed));
+    text_speed     = make_text(std::format("{:.1f}", global_data.modifiers[(int)player_num].speed / 10.0f));
     text_kimagure  = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
     text_detarame  = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
 
     text_true_2     = make_text(tex.skin_config[SC::MODIFIER_TEXT_TRUE].text.at(language));
     text_false_2    = make_text(tex.skin_config[SC::MODIFIER_TEXT_FALSE].text.at(language));
-    text_speed_2    = make_text(std::to_string(global_data.modifiers[(int)player_num].speed));
+    text_speed_2    = make_text(std::format("{:.1f}", global_data.modifiers[(int)player_num].speed / 10.0f));
     text_kimagure_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_KIMAGURE].text.at(language));
     text_detarame_2 = make_text(tex.skin_config[SC::MODIFIER_TEXT_DETARAME].text.at(language));
 }
 
 void ModifierSelector::update(double current_ms) {
-    is_finished = is_confirmed && move->is_finished;
     move->update(current_ms);
     blue_arrow_fade->update(current_ms);
     blue_arrow_move->update(current_ms);
     move_sideways->update(current_ms);
     fade_sideways->update(current_ms);
+    is_finished = is_confirmed && move->is_finished;
 }
 
 void ModifierSelector::confirm() {
@@ -101,7 +101,7 @@ void ModifierSelector::start_text_animation(int dir) {
 
     if (mod_name == "speed") {
         text_speed_2 = std::move(text_speed);
-        text_speed = make_text(std::to_string(modifiers.speed));
+        text_speed = make_text(std::format("{:.1f}", modifiers.speed / 10.0f));
     } else if (mod_name == "random") {
         if (modifiers.random == 1) {
             text_kimagure = std::move(text_kimagure_2);
@@ -128,7 +128,7 @@ void ModifierSelector::left() {
     auto& modifiers = global_data.modifiers[(int)player_num];
 
     if (mod_name == "speed") {
-        modifiers.speed = std::max(0.1f, (float)((int)(modifiers.speed * 10) - 1) / 10.0f);
+        modifiers.speed = std::max(1, modifiers.speed - 1);
         start_text_animation(-1);
     } else if (mod_name == "random") {
         modifiers.random = std::max(0, modifiers.random - 1);
@@ -145,7 +145,7 @@ void ModifierSelector::right() {
     auto& modifiers = global_data.modifiers[(int)player_num];
 
     if (mod_name == "speed") {
-        modifiers.speed = (float)((int)(modifiers.speed * 10) + 1) / 10.0f;
+        modifiers.speed += 1;
         start_text_animation(1);
     } else if (mod_name == "random") {
         modifiers.random = (modifiers.random + 1) % 3;
@@ -173,7 +173,7 @@ void ModifierSelector::draw_animated_text(const std::unique_ptr<OutlinedText>& p
 
 void ModifierSelector::draw() {
     float move_val = is_confirmed
-        ? move->attribute - tex.skin_config[SC::SONG_SELECT_OFFSET].x
+        ? move->attribute + tex.skin_config[SC::SONG_SELECT_OFFSET].x
         : -move->attribute;
     float x = ((int)player_num - 1) * tex.skin_config[SC::OPTION_P2].x;
     float mod_offset_y = tex.skin_config[SC::MODIFIER_OFFSET].y;
@@ -205,9 +205,9 @@ void ModifierSelector::draw() {
             draw_animated_text(text_speed, text_speed_2, tx + x, text_y, is_current);
 
             float spd = modifiers.speed;
-            if      (spd >= 4.0f) tex.draw_texture(MODIFIER::MOD_YONBAI,         {.x=x, .y=row_y});
-            else if (spd >= 3.0f) tex.draw_texture(MODIFIER::MOD_SANBAI,         {.x=x, .y=row_y});
-            else if (spd >  1.0f) tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
+            if      (spd >= 40) tex.draw_texture(MODIFIER::MOD_YONBAI,         {.x=x, .y=row_y});
+            else if (spd >= 30) tex.draw_texture(MODIFIER::MOD_SANBAI,         {.x=x, .y=row_y});
+            else if (spd >  10) tex.draw_texture(tex.get_enum("modifier/" + (TEX_MAP.at(mod_name))), {.x=x, .y=row_y});
 
         } else if (mod_name == "random") {
             if (modifiers.random == 1) {
