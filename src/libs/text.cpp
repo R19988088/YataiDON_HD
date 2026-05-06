@@ -107,7 +107,6 @@ static bool is_beside_prev_char(const std::string& s) {
         ".", ",", "'", "\"",
         "\xe3\x80\x82",  // 。
         "\xe3\x80\x81",  // 、
-        "\xe3\x83\xbb",  // ・
     };
     return beside_set.count(s) > 0;
 }

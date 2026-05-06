@@ -4,8 +4,7 @@
 void GameScreen::on_screen_start() {
     Screen::on_screen_start();
     mask_shader = ray::LoadShader("shader/dummy.vs", "shader/mask.fs");
-    current_ms = 0;
-    end_ms = 0;
+    ms_from_start = 0;
     start_ms = 0;
     start_delay = 1000.0f;
     JudgePos::X = 414 * tex.screen_scale;
@@ -67,7 +66,6 @@ void GameScreen::on_screen_start() {
 
 Screens GameScreen::on_screen_end(Screens next_screen) {
     song_started = false;
-    end_ms = 0;
     ray::UnloadShader(mask_shader);
 
     if (movie.has_value()) {
@@ -157,125 +155,142 @@ void GameScreen::pause_song() {
     }
 }
 
-std::optional<Screens> GameScreen::global_keys() {
-    if (ray::IsKeyPressed(global_data.config->keys.restart_key)) {
-        if (song_music.has_value()) {
-            audio->stop_sound(song_music.value());
-        }
-        players.clear();
-        init_tja(global_data.session_data[(int)global_data.player_num].selected_song);
-        audio->play_sound("restart", "sound");
-        song_started = false;
+void GameScreen::restart_song() {
+    if (song_music.has_value()) {
+        audio->stop_sound(song_music.value());
     }
+    players.clear();
+    init_tja(global_data.session_data[(int)global_data.player_num].selected_song);
+    audio->play_sound("restart", "sound");
+    song_started = false;
+}
+
+std::optional<Screens> GameScreen::global_keys() {
+    if (ray::IsKeyPressed(global_data.config->keys.restart_key))
+        restart_song();
 
     if (ray::IsKeyPressed(global_data.config->keys.back_key)) {
-        if (song_music.has_value()) {
+        if (song_music.has_value())
             audio->stop_sound(song_music.value());
-        }
         return on_screen_end(Screens::SONG_SELECT);
     }
 
-    if (ray::IsKeyPressed(global_data.config->keys.pause_key)) {
+    if (ray::IsKeyPressed(global_data.config->keys.pause_key))
         pause_song();
-    }
 
     return std::nullopt;
 }
 
-void GameScreen::update_background(double current_time) {
+void GameScreen::update_background(double current_ms) {
     if (movie.has_value()) {
-        movie->update(current_time);
+        movie->update(current_ms);
     } else {
         bpm = players[0]->bpm;
-        if (background.has_value()) background->update(current_time, bpm);
+        if (background.has_value()) background->update(current_ms, bpm);
+    }
+}
+
+void GameScreen::save_score(int player_id) {
+    Score score;
+    SessionData& session_data = global_data.session_data[player_id];
+    std::string hash = session_data.song_hash;
+    score.score = session_data.result_data.score;
+    score.good = session_data.result_data.good;
+    score.ok = session_data.result_data.ok;
+    score.bad = session_data.result_data.bad;
+    score.max_combo = session_data.result_data.max_combo;
+    score.drumroll = session_data.result_data.total_drumroll;
+    auto prev_score = scores_manager.get_score(hash, global_data.session_data[player_id].selected_difficulty, player_id);
+    if (prev_score.has_value()) {
+        session_data.result_data.prev_score = prev_score->score;
+    }
+    if (score.ok == 0 && score.bad == 0) {
+        score.crown = Crown::DFC;
+    } else if (score.bad == 0) {
+        score.crown = Crown::FC;
+    } else {
+        score.crown = Crown::CLEAR;
+    }
+    if (score.score >= 1000000) {
+        score.rank = Rank::_RAINBOW;
+    } else if (score.score >= 950000) {
+        score.rank = Rank::_PURPLE;
+    } else if (score.score >= 900000) {
+        score.rank = Rank::_PINK;
+    } else if (score.score >= 800000) {
+        score.rank = Rank::_GOLD;
+    } else if (score.score >= 700000) {
+        score.rank = Rank::_SILVER;
+    } else if (score.score >= 600000) {
+        score.rank = Rank::_BRONZE;
+    } else {
+        score.rank = Rank::_WHITE;
+    }
+    scores_manager.save_score(hash, session_data.selected_difficulty, player_id, score);
+    global_data.songs_played += 1;
+}
+
+void GameScreen::resync_song(double current_ms) {
+    if (!song_started) return;
+    if (!song_music.has_value()) return;
+    if (!audio->is_sound_playing(song_music.value())) return;
+
+    double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
+    double audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
+
+    if (std::abs(ms_from_start - audio_ms_adjusted) > Timing::GOOD) {
+        spdlog::debug("Resyncing chart from {} to {}", ms_from_start, audio_ms_adjusted);
+        ms_from_start = audio_ms_adjusted;
+        start_ms = current_ms - ms_from_start;
+    }
+}
+
+void GameScreen::end_song() {
+    if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
+        global_data.session_data[(int)players[0]->player_num].result_data = players[0]->get_result_score();
+        save_score((int)players[0]->player_num);
+        for (auto& player : players) {
+            player->spawn_ending_anim();
+        }
+        score_saved = true;
+    }
+    if (ms_from_start >= players[0]->end_time + 8533.34) {
+        if (!result_transition.is_started) {
+            result_transition.start();
+            audio->play_sound("result_transition", "voice");
+            spdlog::info("Result transition started and voice played");
+        }
     }
 }
 
 std::optional<Screens> GameScreen::update() {
-    Screen::update();  // Call parent implementation
+    Screen::update();
 
-    double current_time = get_current_ms();
-    transition->update(current_time);
-    if (!paused) {
-        current_ms = current_time - start_ms;
-    }
+    double current_ms = get_current_ms();
+    if (!paused)
+        ms_from_start = current_ms - start_ms;
+
+    transition->update(current_ms);
     if (transition->is_finished()) {
-        start_song(current_ms);
+        start_song(ms_from_start);
         global_data.input_locked = 0;
     } else {
-        start_ms = current_time - parser->metadata.offset*1000;
+        start_ms = current_ms - parser->metadata.offset*1000;
     }
-    if (song_started && song_music.has_value() && audio->is_sound_playing(song_music.value())) {
-        double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
-        double audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
-        if (std::abs(current_ms - audio_ms_adjusted) > Timing::GOOD) {
-            spdlog::debug("Resyncing chart from {} to {}", current_ms, audio_ms_adjusted);
-            current_ms = audio_ms_adjusted;
-            start_ms = current_time - current_ms;
-        }
-    }
-    update_background(current_time);
+    resync_song(current_ms);
+    update_background(current_ms);
 
-    for (auto& player : players) {
-        player->update(current_ms, current_time, background);
-    }
-    song_info.update(current_time);
-    result_transition.update(current_time);
+    for (auto& player : players)
+        player->update(ms_from_start, current_ms, background);
+    song_info.update(current_ms);
+    result_transition.update(current_ms);
+
     if (result_transition.is_finished && !audio->is_sound_playing("result_transition")) {
-        spdlog::info("Result transition finished, moving to RESULT screen");
         return on_screen_end(Screens::RESULT);
+    } else if (ms_from_start >= players[0]->end_time) {
+        end_song();
     }
-    else if (current_ms >= players[0]->end_time) {
-        global_data.session_data[(int)global_data.player_num].result_data = players[0]->get_result_score();
-        if (end_ms != 0) {
-            if (current_time >= end_ms + 1000 && !score_saved) {
-                Score score;
-                score.score = global_data.session_data[(int)global_data.player_num].result_data.score;
-                score.good = global_data.session_data[(int)global_data.player_num].result_data.good;
-                score.ok = global_data.session_data[(int)global_data.player_num].result_data.ok;
-                score.bad = global_data.session_data[(int)global_data.player_num].result_data.bad;
-                score.max_combo = global_data.session_data[(int)global_data.player_num].result_data.max_combo;
-                score.drumroll = global_data.session_data[(int)global_data.player_num].result_data.total_drumroll;
-                if (score.ok == 0 && score.bad == 0) {
-                    score.crown = Crown::DFC;
-                } else if (score.bad == 0) {
-                    score.crown = Crown::FC;
-                } else {
-                    score.crown = Crown::CLEAR;
-                }
-                if (score.score >= 1000000) {
-                    score.rank = Rank::_RAINBOW;
-                } else if (score.score >= 950000) {
-                    score.rank = Rank::_PURPLE;
-                } else if (score.score >= 900000) {
-                    score.rank = Rank::_PINK;
-                } else if (score.score >= 800000) {
-                    score.rank = Rank::_GOLD;
-                } else if (score.score >= 700000) {
-                    score.rank = Rank::_SILVER;
-                } else if (score.score >= 600000) {
-                    score.rank = Rank::_BRONZE;
-                } else {
-                    score.rank = Rank::_WHITE;
-                }
-                for (auto& player : players) {
-                    player->spawn_ending_anim();
-                    scores_manager.save_score(global_data.session_data[(int)player->player_num].song_hash, global_data.session_data[(int)player->player_num].selected_difficulty, 1, score);
-                }
-                global_data.songs_played += 1;
-                score_saved = true;
-            }
-            if (current_time >= end_ms + 8533.34) {
-                if (!result_transition.is_started) {
-                    result_transition.start();
-                    audio->play_sound("result_transition", "voice");
-                    spdlog::info("Result transition started and voice played");
-                }
-            }
-        } else {
-            end_ms = current_time;
-        }
-    }
+
     return global_keys();
 }
 
@@ -292,15 +307,15 @@ void GameScreen::draw_overlay() {
 
 void GameScreen::draw_players() {
     if (players.size() == 1) {
-        players[0]->draw(current_ms, 0, 184 * tex.screen_scale, mask_shader);
+        players[0]->draw(ms_from_start, 0, 184 * tex.screen_scale, mask_shader);
     } else if (players.size() == 2) {
-        players[0]->draw(current_ms, 0, 184 * tex.screen_scale, mask_shader);
-        players[1]->draw(current_ms, 0, 360 * tex.screen_scale, mask_shader);
+        players[0]->draw(ms_from_start, 0, 184 * tex.screen_scale, mask_shader);
+        players[1]->draw(ms_from_start, 0, 360 * tex.screen_scale, mask_shader);
     } else {
         float gap = ((float)tex.screen_height - (players.size() * 176 * tex.screen_scale)) / (players.size() + 1);
         for (int i = 0; i < players.size(); i++) {
             float position = gap + i * ((176 * tex.screen_scale) + gap);
-            players[i]->draw(current_ms, 0, position, mask_shader);
+            players[i]->draw(ms_from_start, 0, position, mask_shader);
         }
     }
 }

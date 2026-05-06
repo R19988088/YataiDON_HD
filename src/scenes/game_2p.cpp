@@ -51,28 +51,21 @@ std::optional<Screens> Game2PScreen::update() {
     double current_time = get_current_ms();
     transition->update(current_time);
     if (!paused) {
-        current_ms = current_time - start_ms;
+        ms_from_start = current_time - start_ms;
     }
     if (transition->is_finished()) {
-        start_song(current_ms);
+        start_song(ms_from_start);
         global_data.input_locked = 0;
     } else {
         start_ms = current_time - parser->metadata.offset * 1000;
     }
 
-    if (song_started && song_music.has_value() && audio->is_sound_playing(song_music.value())) {
-        double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0f;
-        double audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
-        if (std::abs(current_ms - audio_ms_adjusted) > Timing::GOOD) {
-            current_ms = audio_ms_adjusted;
-            start_ms = current_time - current_ms;
-        }
-    }
+    resync_song(ms_from_start);
 
     update_background(current_time);
 
     for (auto& p : players) {
-        p->update(current_ms, current_time, background);
+        p->update(ms_from_start, current_time, background);
     }
     song_info.update(current_time);
     result_transition.update(current_time);
@@ -80,50 +73,21 @@ std::optional<Screens> Game2PScreen::update() {
     if (result_transition.is_finished && !audio->is_sound_playing("result_transition")) {
         return on_screen_end(Screens::RESULT_2P);
     }
-    else if (current_ms >= players[0]->end_time) {
-        global_data.session_data[(int)PlayerNum::P1].result_data = players[0]->get_result_score();
-        global_data.session_data[(int)PlayerNum::P2].result_data = players[1]->get_result_score();
-
-        if (end_ms != 0) {
-            if (current_time >= end_ms + 1000 && !score_saved) {
-                auto save_player_score = [&](int idx, PlayerNum pnum, int player_id) {
-                    const auto& rd = global_data.session_data[(int)pnum].result_data;
-                    Score score;
-                    score.score = rd.score;
-                    score.good = rd.good;
-                    score.ok = rd.ok;
-                    score.bad = rd.bad;
-                    score.max_combo = rd.max_combo;
-                    score.drumroll = rd.total_drumroll;
-                    if (score.ok == 0 && score.bad == 0) score.crown = Crown::DFC;
-                    else if (score.bad == 0) score.crown = Crown::FC;
-                    else score.crown = Crown::CLEAR;
-                    if (score.score >= 1000000) score.rank = Rank::_RAINBOW;
-                    else if (score.score >= 950000) score.rank = Rank::_PURPLE;
-                    else if (score.score >= 900000) score.rank = Rank::_PINK;
-                    else if (score.score >= 800000) score.rank = Rank::_GOLD;
-                    else if (score.score >= 700000) score.rank = Rank::_SILVER;
-                    else if (score.score >= 600000) score.rank = Rank::_BRONZE;
-                    else score.rank = Rank::_WHITE;
-                    players[idx]->spawn_ending_anim();
-                    scores_manager.save_score(
-                        global_data.session_data[(int)pnum].song_hash,
-                        global_data.session_data[(int)pnum].selected_difficulty,
-                        player_id, score);
-                };
-                save_player_score(0, PlayerNum::P1, 1);
-                save_player_score(1, PlayerNum::P2, 2);
-                global_data.songs_played += 1;
-                score_saved = true;
+    else if (ms_from_start >= players[0]->end_time) {
+        if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
+            for (int i = 0; i < 2; i++) {
+                global_data.session_data[i + 1].result_data = players[i]->get_result_score();
+                save_score(i + 1);
+                players[i]->spawn_ending_anim();
             }
-            if (current_time >= end_ms + 8533.34) {
-                if (!result_transition.is_started) {
-                    result_transition.start();
-                    audio->play_sound("result_transition", "voice");
-                }
+            global_data.songs_played += 1;
+            score_saved = true;
+        }
+        if (ms_from_start >= players[0]->end_time + 8533.34) {
+            if (!result_transition.is_started) {
+                result_transition.start();
+                audio->play_sound("result_transition", "voice");
             }
-        } else {
-            end_ms = current_time;
         }
     }
 

@@ -1,0 +1,139 @@
+#include "../../scenes/sandbox.h"
+#include "../global/allnet_indicator.h"
+#include "../global/coin_overlay.h"
+#include "../global/entry_overlay.h"
+#include "../global/indicator.h"
+#include "../global/nameplate.h"
+#include "../global/timer.h"
+#include "../../libs/global_data.h"
+#include "texture_ids_generated.h"
+
+constexpr int CENTER_X = 220;
+constexpr int CENTER_Y = 220;
+
+struct AllNetIconFixture : public SandboxScreen::Fixture {
+    std::optional<AllNetIcon> active;
+
+    AllNetIconFixture() { name = "AllNetIcon"; screen = "global"; }
+
+    uint32_t anchor_texture_id() override { return OVERLAY::ALLNET_INDICATOR; }
+
+    void reset(double)    override { active.emplace(); }
+    void on_space(double) override { active.emplace(); }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(0, 0); }
+
+    std::string controls() override { return "SPACE/L-CLICK: restart  R/R-CLICK: restart"; }
+};
+
+struct CoinOverlayFixture : public SandboxScreen::Fixture {
+    std::optional<CoinOverlay> active;
+
+    CoinOverlayFixture() { name = "CoinOverlay"; screen = "global"; }
+
+    uint32_t anchor_texture_id() override { return OVERLAY::CAMERA; }
+
+    void reset(double)    override { active.emplace(); }
+    void on_space(double) override { active.emplace(); }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(0, 0); }
+
+    std::string controls() override { return "SPACE/L-CLICK: restart  R/R-CLICK: restart"; }
+};
+
+struct EntryOverlayFixture : public SandboxScreen::Fixture {
+    std::optional<EntryOverlay> active;
+
+    EntryOverlayFixture() { name = "EntryOverlay"; screen = "global"; }
+
+    uint32_t anchor_texture_id() override { return OVERLAY::BANAPASS_CARD; }
+
+    void reset(double)    override { active.emplace(); }
+    void on_space(double) override { active.emplace(); }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(0, 0); }
+
+    std::string controls() override { return "SPACE/L-CLICK: restart  R/R-CLICK: restart"; }
+};
+
+struct IndicatorFixture : public SandboxScreen::Fixture {
+    std::optional<Indicator> active;
+    int type_idx = 0;
+
+    static constexpr Indicator::State states[] = {
+        Indicator::State::SKIP,
+        Indicator::State::SIDE,
+        Indicator::State::SELECT,
+        Indicator::State::WAIT,
+    };
+
+    IndicatorFixture() { name = "Indicator"; screen = "global"; }
+
+    uint32_t anchor_texture_id() override { return INDICATOR::BACKGROUND; }
+
+    void reset(double) override { active.emplace(states[type_idx]); }
+    void on_space(double) override { active.emplace(states[type_idx]); }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(CENTER_X, CENTER_Y); }
+
+    std::vector<std::string> type_names() override { return {"SKIP", "SIDE", "SELECT", "WAIT"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double ms) override { type_idx = idx; reset(ms); }
+
+    std::string controls() override { return "SPACE/L-CLICK: restart  R/R-CLICK: reset"; }
+};
+
+struct NameplateFixture : public SandboxScreen::Fixture {
+    std::optional<Nameplate> active;
+    int type_idx = 0;
+
+    NameplateFixture() { name = "Nameplate"; screen = "global"; }
+
+    uint32_t anchor_texture_id() override { return NAMEPLATE::OUTLINE; }
+
+    void reset(double) override {
+        switch (type_idx) {
+            case 0: active.emplace("Test Player", "Test Title", PlayerNum::P1, -1,   false, false, 0); break;
+            case 1: active.emplace("Test Player", "Test Title", PlayerNum::P1,  5,   true,  false, 1); break;
+            case 2: active.emplace("Test Player", "Test Title", PlayerNum::P1,  5,   false, true,  0); break;
+            case 3: active.emplace("Test Player", "Test Title", PlayerNum::AI, -1,   false, false, 0); break;
+        }
+    }
+    void on_space(double ms) override { reset(ms); }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(CENTER_X, CENTER_Y); }
+
+    std::vector<std::string> type_names() override { return {"NORMAL", "GOLD DAN", "RAINBOW", "AI"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double ms) override { type_idx = idx; reset(ms); }
+
+    std::string controls() override { return "SPACE/L-CLICK: restart  R/R-CLICK: reset"; }
+};
+
+struct TimerFixture : public SandboxScreen::Fixture {
+    std::optional<Timer> active;
+    int type_idx = 0;
+
+    static constexpr int times[] = { 5, 30, 60, 120 };
+
+    TimerFixture() { name = "Timer"; screen = "global"; }
+
+    uint32_t anchor_texture_id() override { return TIMER::BG; }
+
+    void reset(double ms) override { active.emplace(times[type_idx], ms, []{}); }
+    void on_space(double ms) override { active.emplace(times[type_idx], ms, []{}); }
+
+    void update(double ms) override { if (active) active->update(ms); }
+    void draw()            override { if (active) active->draw(0, 0); }
+
+    std::vector<std::string> type_names() override { return {"5s", "30s", "60s", "120s"}; }
+    int  get_type() override { return type_idx; }
+    void set_type(int idx, double ms) override { type_idx = idx; reset(ms); }
+
+    std::string controls() override { return "SPACE/L-CLICK: restart  R/R-CLICK: reset"; }
+};

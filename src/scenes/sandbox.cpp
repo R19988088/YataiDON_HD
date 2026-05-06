@@ -1,14 +1,68 @@
 #include "sandbox.h"
 #include "../objects/sandbox/fixtures.h"
+#include "../objects/sandbox/fixtures_title.h"
+#include "../objects/sandbox/fixtures_result.h"
+#include "../objects/sandbox/fixtures_song_select.h"
+#include "../objects/sandbox/fixtures_global.h"
 
 static constexpr int SB_PANEL_W  = 220;
 static constexpr int SB_ITEM_H   = 32;
+static constexpr int SB_HEADER_H = 20;
 static constexpr int SB_BTN_H    = 28;
 static constexpr int SB_BTN_MARG = 8;
 static constexpr int SB_TYPE_H   = 24;
 
+// ─── Panel layout helpers ─────────────────────────────────────────────────────
+
+struct PanelEntry {
+    bool        is_header;
+    int         fixture_idx;  // -1 for headers
+    std::string label;
+    int         content_y;   // y in content-space (before scroll)
+};
+
+static std::vector<PanelEntry> build_panel_layout(
+    const std::vector<std::unique_ptr<SandboxScreen::Fixture>>& fixtures)
+{
+    std::vector<PanelEntry> layout;
+    std::string prev_screen;
+    int y = 0;
+    for (int i = 0; i < (int)fixtures.size(); ++i) {
+        const auto& f = fixtures[i];
+        if (f->screen != prev_screen) {
+            layout.push_back({true, -1, f->screen, y});
+            y += SB_HEADER_H;
+            prev_screen = f->screen;
+        }
+        layout.push_back({false, i, f->name, y});
+        y += SB_ITEM_H;
+    }
+    return layout;
+}
+
+static int panel_content_height(const std::vector<PanelEntry>& layout) {
+    if (layout.empty()) return 0;
+    const auto& last = layout.back();
+    return last.content_y + (last.is_header ? SB_HEADER_H : SB_ITEM_H);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+void SandboxScreen::ensure_screen_loaded(const std::string& screen_name) {
+    // Global fixtures use global_tex which is always loaded — nothing to do
+    if (screen_name == "global" || screen_name == loaded_screen) return;
+    try {
+        tex.load_screen_textures(screen_name);
+        audio->load_screen_sounds(screen_name);
+    } catch (const std::exception& e) {
+        spdlog::warn("Sandbox: could not load {} assets: {}", screen_name, e.what());
+    }
+    loaded_screen = screen_name;
+}
+
 void SandboxScreen::on_screen_start() {
     ray::ShowCursor();
+    loaded_screen = "game";
     try {
         tex.load_screen_textures("game");
         audio->load_screen_sounds("game");
@@ -18,6 +72,8 @@ void SandboxScreen::on_screen_start() {
     spdlog::info("Sandbox screen initialized");
 
     fixtures.clear();
+
+    // ── game ──────────────────────────────────────────────────────────────────
     fixtures.push_back(std::make_unique<JudgmentFixture>());
     fixtures.push_back(std::make_unique<DrumHitFixture>());
     fixtures.push_back(std::make_unique<ComboFixture>());
@@ -42,8 +98,36 @@ void SandboxScreen::on_screen_start() {
     fixtures.push_back(std::make_unique<ScoreCounterAnimFixture>());
     fixtures.push_back(std::make_unique<SongInfoFixture>());
 
+    // ── title ─────────────────────────────────────────────────────────────────
+    fixtures.push_back(std::make_unique<WarningXFixture>());
+    fixtures.push_back(std::make_unique<WarningBachiHitFixture>());
+
+    // ── result ────────────────────────────────────────────────────────────────
+    fixtures.push_back(std::make_unique<ResultBackgroundFixture>());
+    fixtures.push_back(std::make_unique<ResultCrownFixture>());
+    fixtures.push_back(std::make_unique<ResultFadeInFixture>());
+    fixtures.push_back(std::make_unique<BottomCharactersFixture>());
+    fixtures.push_back(std::make_unique<HighScoreIndicatorFixture>());
+
+    // ── song_select ───────────────────────────────────────────────────────────
+    fixtures.push_back(std::make_unique<DanTransitionFixture>());
+    fixtures.push_back(std::make_unique<UraSwitchFixture>());
+
+    // ── global ────────────────────────────────────────────────────────────────
+    fixtures.push_back(std::make_unique<AllNetIconFixture>());
+    fixtures.push_back(std::make_unique<CoinOverlayFixture>());
+    fixtures.push_back(std::make_unique<EntryOverlayFixture>());
+    fixtures.push_back(std::make_unique<IndicatorFixture>());
+    fixtures.push_back(std::make_unique<NameplateFixture>());
+    fixtures.push_back(std::make_unique<TimerFixture>());
+
     current_ms = fixture_start_ms = get_current_ms();
-    for (auto& f : fixtures) f->reset(current_ms);
+
+    // Only pre-reset fixtures belonging to the currently loaded screen
+    for (auto& f : fixtures) {
+        if (f->screen == loaded_screen) f->reset(current_ms);
+    }
+
     fixture_idx  = 0;
     panel_scroll = 0;
 }
@@ -73,6 +157,8 @@ std::optional<Screens> SandboxScreen::handle_input() {
         fixtures[fixture_idx]->reset(current_ms);
     }
 
+    auto layout = build_panel_layout(fixtures);
+
     // Fixed bottom layout (computed from bottom up)
     const int btn_y_pause   = tex.screen_height - 16 - 4 - SB_BTN_H;
     const int var_btn_y     = btn_y_pause - 4 - SB_BTN_H;
@@ -81,10 +167,10 @@ std::optional<Screens> SandboxScreen::handle_input() {
     const int n_types       = (int)panel_type_list.size();
     const int y_above_var   = var_btn_y - 8 - n_types * type_row_h - (n_types ? 8 : 0);
     const int y_types_start = y_above_var + 8;
-    const int scroll_bottom = y_above_var;  // scrollable area ends here
+    const int scroll_bottom = y_above_var;
     const int scroll_area_h = scroll_bottom - 46;
-    const int content_h     = (int)fixtures.size() * SB_ITEM_H;
-    const int max_scroll     = std::max(0, content_h - scroll_area_h);
+    const int content_h     = panel_content_height(layout);
+    const int max_scroll    = std::max(0, content_h - scroll_area_h);
 
     // Mouse-wheel scroll over panel
     if (mouse.x < SB_PANEL_W) {
@@ -113,13 +199,16 @@ std::optional<Screens> SandboxScreen::handle_input() {
             }
         }
 
-        // Fixture list (scrollable) — convert screen y → content y
+        // Fixture list (scrollable) — only non-header entries are clickable
         if (mouse.y >= 46 && mouse.y < scroll_bottom) {
             int cy = (int)mouse.y - 46 + panel_scroll;
-            for (int i = 0; i < (int)fixtures.size(); ++i) {
-                if (cy >= i * SB_ITEM_H && cy < (i + 1) * SB_ITEM_H) {
-                    if (i != fixture_idx) {
-                        fixture_idx = i;
+            for (const auto& entry : layout) {
+                if (entry.is_header) continue;
+                if (cy >= entry.content_y && cy < entry.content_y + SB_ITEM_H) {
+                    int new_idx = entry.fixture_idx;
+                    if (new_idx != fixture_idx) {
+                        ensure_screen_loaded(fixtures[new_idx]->screen);
+                        fixture_idx = new_idx;
                         current_ms  = fixture_start_ms = get_current_ms();
                         fixtures[fixture_idx]->reset(current_ms);
                     }
@@ -188,20 +277,34 @@ void SandboxScreen::draw_panel() const {
     // ── Scrollable fixture list ───────────────────────────────────────────────
     constexpr int SCROLL_TOP = 46;
     const int scroll_area_h  = scroll_bottom - SCROLL_TOP;
-    const int content_h      = (int)fixtures.size() * SB_ITEM_H;
+    auto layout              = build_panel_layout(fixtures);
+    const int content_h      = panel_content_height(layout);
     const int max_scroll     = std::max(0, content_h - scroll_area_h);
 
     ray::BeginScissorMode(0, SCROLL_TOP, SB_PANEL_W, scroll_area_h);
-    for (int i = 0; i < (int)fixtures.size(); ++i) {
-        int iy = SCROLL_TOP + i * SB_ITEM_H - panel_scroll;
-        bool selected = (i == fixture_idx);
-        bool hovered  = !selected && mouse.x < SB_PANEL_W && mouse.y >= iy && mouse.y < iy + SB_ITEM_H;
-        if (selected)
-            ray::DrawRectangle(0, iy, SB_PANEL_W, SB_ITEM_H, ray::Color{60, 80, 180, 220});
-        else if (hovered)
-            ray::DrawRectangle(0, iy, SB_PANEL_W, SB_ITEM_H, ray::Color{40, 50, 100, 160});
-        ray::Color col = selected ? ray::WHITE : (hovered ? ray::Color{220, 220, 255, 255} : ray::Color{180, 180, 180, 255});
-        ray::DrawText(fixtures[i]->name.c_str(), 10, iy + 7, 16, col);
+    for (const auto& entry : layout) {
+        int iy = SCROLL_TOP + entry.content_y - panel_scroll;
+
+        if (entry.is_header) {
+            // Section label — dim background tint + screen name in caps
+            ray::DrawRectangle(0, iy, SB_PANEL_W, SB_HEADER_H, ray::Color{35, 35, 55, 255});
+            std::string label = entry.label;
+            for (auto& c : label) c = (char)toupper((unsigned char)c);
+            ray::DrawText(label.c_str(), 8, iy + (SB_HEADER_H - 11) / 2, 11,
+                          ray::Color{140, 160, 220, 255});
+        } else {
+            bool selected = (entry.fixture_idx == fixture_idx);
+            bool hovered  = !selected && mouse.x < SB_PANEL_W &&
+                            mouse.y >= iy && mouse.y < iy + SB_ITEM_H;
+            if (selected)
+                ray::DrawRectangle(0, iy, SB_PANEL_W, SB_ITEM_H, ray::Color{60, 80, 180, 220});
+            else if (hovered)
+                ray::DrawRectangle(0, iy, SB_PANEL_W, SB_ITEM_H, ray::Color{40, 50, 100, 160});
+            ray::Color col = selected ? ray::WHITE
+                           : (hovered ? ray::Color{220, 220, 255, 255}
+                                      : ray::Color{180, 180, 180, 255});
+            ray::DrawText(entry.label.c_str(), 10, iy + 7, 16, col);
+        }
     }
     ray::EndScissorMode();
 

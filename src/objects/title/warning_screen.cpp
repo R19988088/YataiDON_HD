@@ -31,6 +31,10 @@ void WarningX::draw_fg() {
     tex.draw_texture(WARNING::X_RED, {.scale=(float)resize->attribute, .center=true, .fade=fade_in->attribute});
 }
 
+bool WarningX::is_finished() {
+    return resize->is_finished && fade_in->is_finished && fade_in_2->is_finished;
+}
+
 WarningBachiHit::WarningBachiHit() {
     resize = (TextureResizeAnimation*)tex.get_animation(3);
     fade_in = (FadeAnimation*)tex.get_animation(4);
@@ -54,6 +58,10 @@ void WarningBachiHit::draw() {
     if (resize->attribute > 0 && sound_played) {
         tex.draw_texture(WARNING::BACHI);
     }
+}
+
+bool WarningBachiHit::is_finished() {
+    return fade_in->is_finished && sound_played && resize->is_finished;
 }
 
 WarningCharacters::WarningCharacters() {

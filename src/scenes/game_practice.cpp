@@ -78,7 +78,7 @@ void PracticeGameScreen::pause_song_practice() {
         double min_distance = std::numeric_limits<double>::infinity();
         for (int i = 0; i < (int)bars.size(); ++i) {
             double bar_relative_time = bars[i].hit_ms - first_bar_time;
-            double distance = std::abs(bar_relative_time - current_ms);
+            double distance = std::abs(bar_relative_time - ms_from_start);
             if (distance < min_distance) {
                 min_distance = distance;
                 nearest_bar_index = i;
@@ -164,35 +164,24 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
 std::optional<Screens> PracticeGameScreen::update() {
     Screen::update();
 
-    double current_time = get_current_ms();
-    transition->update(current_time);
-    if (!paused) {
-        current_ms = current_time - start_ms;
-    }
+    double current_ms = get_current_ms();
+    transition->update(current_ms);
+    if (!paused)
+        ms_from_start = current_ms - start_ms;
     if (transition->is_finished()) {
         start_song(current_ms);
         global_data.input_locked = 0;
-    } else {
-        start_ms = current_time - parser->metadata.offset * 1000;
     }
 
-    if (song_started && song_music.has_value() && audio->is_sound_playing(song_music.value())) {
-        double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0;
-        double audio_ms_adjusted = audio_ms + (parser->metadata.offset * 1000 + start_delay - (double)global_data.config->general.audio_offset);
-        if (std::abs(current_ms - audio_ms_adjusted) > Timing::GOOD) {
-            current_ms = audio_ms_adjusted;
-            start_ms = current_time - current_ms;
-        }
-    }
+    resync_song(current_ms);
 
-    update_background(current_time);
+    update_background(current_ms);
 
-    for (auto& player : players) {
-        player->update(current_ms, current_time, background);
-    }
-    song_info.update(current_time);
+    for (auto& player : players)
+        player->update(ms_from_start, current_ms, background);
+    song_info.update(current_ms);
 
-    scrobble_move->update(current_time);
+    scrobble_move->update(current_ms);
     if (scrobble_move->is_started && scrobble_move->is_finished) {
         scrobble_time = bars[scrobble_index].hit_ms;
         scrobble_move = std::make_unique<MoveAnimation>(200.0, 0);
@@ -311,7 +300,7 @@ void PracticeGameScreen::draw() {
         background->draw_back();
     }
 
-    players[0]->draw_practice(current_ms, 0, 184 * tex.screen_scale, mask_shader, !paused);
+    players[0]->draw_practice(ms_from_start, 0, 184 * tex.screen_scale, mask_shader, !paused);
 
     if (background.has_value()) background->draw_fore();
 
@@ -342,7 +331,7 @@ void PracticeGameScreen::draw() {
                    ? 0.0f
                    : (float)std::min(raw / players[0]->end_time, 1.0);
     } else {
-        progress = players.empty() ? 0.0f : (float)std::min(current_ms / players[0]->end_time, 1.0);
+        progress = players.empty() ? 0.0f : (float)std::min(ms_from_start / players[0]->end_time, 1.0);
     }
     float bar_width = tex.skin_config[SC::PRACTICE_PROGRESS_BAR_WIDTH].width;
     tex.draw_texture(PRACTICE::PROGRESS_BAR, {.x2 = progress * bar_width});

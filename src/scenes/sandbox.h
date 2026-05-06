@@ -6,6 +6,7 @@ class SandboxScreen : public Screen {
 public:
     struct Fixture {
         std::string name;
+        std::string screen = "game";
         virtual ~Fixture() = default;
         virtual void reset(double ms) = 0;
         virtual void update(double ms) = 0;
@@ -27,11 +28,14 @@ private:
     double fixture_start_ms = 0.0;
     bool   paused           = false;
     int    panel_scroll     = 0;
+    std::string loaded_screen;
 
-    static constexpr int    PANEL_W  = 220;
-    static constexpr int    ITEM_H   = 32;
-    static constexpr double FRAME_MS = 1000.0 / 60.0;
+    static constexpr int    PANEL_W   = 220;
+    static constexpr int    ITEM_H    = 32;
+    static constexpr int    HEADER_H  = 20;
+    static constexpr double FRAME_MS  = 1000.0 / 60.0;
 
+    void ensure_screen_loaded(const std::string& screen_name);
     void draw_panel() const;
     void draw_debug() const;
     std::optional<Screens> handle_input();

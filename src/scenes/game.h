@@ -18,8 +18,7 @@ public:
 
     ray::Shader mask_shader;
     double start_ms;
-    double current_ms;
-    double end_ms;
+    double ms_from_start;
     double start_delay;
     bool song_started;
     bool paused;
@@ -48,11 +47,19 @@ public:
 
     void start_song(double ms_from_start);
 
+    void restart_song();
+
     void pause_song();
+
+    void resync_song(double ms_from_start);
+
+    void end_song();
 
     std::optional<Screens> global_keys();
 
-    void update_background(double current_time);
+    void update_background(double current_ms);
+
+    void save_score(int player_id);
 
     std::optional<Screens> update() override;
 

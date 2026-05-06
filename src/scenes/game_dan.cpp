@@ -5,8 +5,7 @@ void DanGameScreen::on_screen_start() {
     // Call the Screen base (loads textures/sounds) but NOT GameScreen::on_screen_start
     Screen::on_screen_start();
     mask_shader   = ray::LoadShader("shader/dummy.vs", "shader/mask.fs");
-    current_ms    = 0;
-    end_ms        = 0;
+    ms_from_start = 0;
     start_ms      = 0;
     start_delay   = 4000.0;
     song_started  = false;
@@ -186,7 +185,7 @@ void DanGameScreen::check_exam_failures() {
         const Exam& exam = exams[i];
         int val = get_exam_progress(exam);
 
-        if (exam.range == "more" && end_ms != 0 && val < exam.red) {
+        if (exam.range == "more" && val < exam.red) {
             exam_failed[i] = true;
             audio->play_sound("exam_failed", "sound");
             spdlog::info("Dan exam {} ({}) failed: {} < {}", i, exam.type, val, exam.red);
@@ -209,46 +208,32 @@ Screens DanGameScreen::on_screen_end(Screens next_screen) {
 
 std::optional<Screens> DanGameScreen::update() {
     Screen::update();
-    double current_time = get_current_ms();
+    double current_ms = get_current_ms();
 
-    transition->update(current_time);
-    current_ms = current_time - start_ms;
+    transition->update(current_ms);
+    ms_from_start = current_ms - start_ms;
     //dan_transition.update(current_time);
 
-    if (transition->is_finished() /*&& dan_transition.is_finished()*/) {
-        start_song(current_ms);
-    } else {
-        start_ms = current_time - parser->metadata.offset * 1000;
-    }
+    if (transition->is_finished() /*&& dan_transition.is_finished()*/)
+        start_song(ms_from_start);
 
-    update_background(current_time);
+    update_background(current_ms);
 
-    if (song_music.has_value() && audio->is_sound_playing(song_music.value())) {
-        double audio_ms = audio->get_sound_time_played(song_music.value()) * 1000.0;
-        double adj = audio_ms + (parser->metadata.offset * 1000 + start_delay
-                                  - (double)global_data.config->general.audio_offset);
-        if (std::abs(current_ms - adj) > Timing::GOOD) {
-            current_ms = adj;
-            start_ms   = current_time - current_ms;
-        }
-    }
+    resync_song(ms_from_start);
 
-    players[0]->update(current_ms, current_time, background);
-    song_info.update(current_time);
-    result_transition.update(current_time);
+    players[0]->update(ms_from_start, current_ms, background);
+    song_info.update(current_ms);
+    result_transition.update(current_ms);
 
     dan_info_cache = calculate_dan_info();
     check_exam_failures();
 
-    // Result transition finished → go to DAN_RESULT
-    if (result_transition.is_finished && !audio->is_sound_playing("dan_transition")) {
-        spdlog::info("DanGameScreen: moving to DAN_RESULT");
+    if (result_transition.is_finished && !audio->is_sound_playing("dan_transition"))
         return on_screen_end(Screens::DAN_RESULT);
-    }
 
     SessionData& sd = global_data.session_data[(int)global_data.player_num];
 
-    if (current_ms >= players[0]->end_time + 1000) {
+    if (ms_from_start >= players[0]->end_time) {
         // Save per-song result if not yet saved for this song
         if ((int)sd.dan_result_data.songs.size() <= song_index) {
             DanResultSong song_res;
@@ -265,35 +250,30 @@ std::optional<Screens> DanGameScreen::update() {
 
         bool is_last = (song_index == (int)sd.selected_dan.size() - 1);
         if (is_last) {
-            if (end_ms != 0) {
-                if (current_time >= end_ms + 1000 && !score_saved) {
-                    sd.dan_result_data.dan_color   = dan_color;
-                    sd.dan_result_data.dan_title   = sd.song_title;
-                    sd.dan_result_data.score       = players[0]->get_score();
-                    sd.dan_result_data.gauge_length= dan_gauge.gauge_length;
-                    sd.dan_result_data.max_combo   = players[0]->get_max_combo();
-                    sd.dan_result_data.exams       = sd.selected_dan_exam;
-                    sd.dan_result_data.exam_data.clear();
-                    if (dan_info_cache.has_value()) {
-                        for (int i = 0; i < (int)dan_info_cache->exam_data.size(); i++) {
-                            DanResultExam re;
-                            re.progress      = dan_info_cache->exam_data[i].progress;
-                            re.counter_value = dan_info_cache->exam_data[i].counter_value;
-                            re.bar_texture   = dan_info_cache->exam_data[i].bar_texture;
-                            re.failed        = exam_failed[i];
-                            sd.dan_result_data.exam_data.push_back(re);
-                        }
+            if (ms_from_start >= players[0]->end_time + 1000 && !score_saved) {
+                sd.dan_result_data.dan_color   = dan_color;
+                sd.dan_result_data.dan_title   = sd.song_title;
+                sd.dan_result_data.score       = players[0]->get_score();
+                sd.dan_result_data.gauge_length= dan_gauge.gauge_length;
+                sd.dan_result_data.max_combo   = players[0]->get_max_combo();
+                sd.dan_result_data.exams       = sd.selected_dan_exam;
+                sd.dan_result_data.exam_data.clear();
+                if (dan_info_cache.has_value()) {
+                    for (int i = 0; i < (int)dan_info_cache->exam_data.size(); i++) {
+                        DanResultExam re;
+                        re.progress      = dan_info_cache->exam_data[i].progress;
+                        re.counter_value = dan_info_cache->exam_data[i].counter_value;
+                        re.bar_texture   = dan_info_cache->exam_data[i].bar_texture;
+                        re.failed        = exam_failed[i];
+                        sd.dan_result_data.exam_data.push_back(re);
                     }
-                    players[0]->spawn_ending_anim();
-                    score_saved = true;
                 }
-                if (current_time >= end_ms + 8533.34 && !result_transition.is_started) {
-                    result_transition.start();
-                    audio->play_sound("dan_transition", "voice");
-                    spdlog::info("DanGameScreen: result transition started");
-                }
-            } else {
-                end_ms = current_time;
+                players[0]->spawn_ending_anim();
+                score_saved = true;
+            }
+            if (ms_from_start >= players[0]->end_time + 8533.34 && !result_transition.is_started) {
+                result_transition.start();
+                audio->play_sound("dan_transition", "voice");
             }
         } else {
             // Advance to next song
@@ -303,7 +283,6 @@ std::optional<Screens> DanGameScreen::update() {
             prev_drumroll = players[0]->get_total_drumroll();
 
             song_index++;
-            end_ms       = 0;
             song_started = false;
             change_song();
         }
@@ -420,7 +399,7 @@ void DanGameScreen::draw() {
     draw_dan_info();
     dan_gauge.draw();
     if (players.size() == 1)
-        players[0]->draw(current_ms, 0, 184 * tex.screen_scale, mask_shader);
+        players[0]->draw(ms_from_start, 0, 184 * tex.screen_scale, mask_shader);
     //dan_transition.draw();
     if (background.has_value()) background->draw_fore();
     draw_overlay();
