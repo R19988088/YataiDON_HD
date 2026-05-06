@@ -11,6 +11,7 @@ FolderBox::FolderBox(const fs::path& path, const BoxDef& box_def, int tja_count,
 }
 
 void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs::path>& song_files) {
+    crown.clear();
     std::set<int> disqualified;
 
     auto update_crown = [&](const fs::path& file_path) {
@@ -44,6 +45,8 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
                 std::stringstream ss(line);
                 std::string field;
                 while (std::getline(ss, field, '|')) fields.push_back(field);
+                if (!line.empty() && line.back() == '|')
+                    fields.push_back("");
                 if (fields.size() < 3) continue;
                 std::string hash = fields[0];
                 if (hash.size() >= 3 && (unsigned char)hash[0] == 0xEF &&
@@ -51,9 +54,6 @@ void FolderBox::refresh_scores(std::map<std::pair<std::string, std::string>, fs:
                     hash = hash.substr(3);
                 if (auto found = scores_manager.get_path_by_hash(hash)) {
                     update_crown(*found);
-                } else {
-                    auto it = song_files.find({fields[1], fields[2]});
-                    if (it != song_files.end()) update_crown(it->second);
                 }
             }
         }

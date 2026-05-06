@@ -200,9 +200,7 @@ void LoadingScreen::load_song_hashes() {
                     new_hashes[0] = parser.get_diff_hash(0);
                 } else {
                     for (const auto& [course, course_data] : parser.metadata.course_data) {
-                        for (int diff = course; diff < 5; diff++) {
-                            new_hashes[diff] = parser.get_diff_hash(diff);
-                        }
+                        new_hashes[course] = parser.get_diff_hash(course);
                     }
                 }
                 for (int i = 0; i < 5; i++) {
@@ -268,9 +266,7 @@ void LoadingScreen::load_song_hashes() {
                     hashes[0] = parser.get_diff_hash(0);
                 } else {
                     for (const auto& [course, course_data] : parser.metadata.course_data) {
-                        for (int diff = course; diff < 5; diff++) {
-                            hashes[diff] = parser.get_diff_hash(diff);
-                        }
+                        hashes[course] = parser.get_diff_hash(course);
                     }
                 }
                 title    = parser.metadata.title.count("en") ? parser.metadata.title.at("en") : "";
