@@ -65,30 +65,6 @@ std::string test_encodings(const std::filesystem::path& file_path) {
     return "shift-jis";
 }
 
-std::string strip_comments(const std::string& code) {
-    std::string result;
-    std::istringstream stream(code);
-    std::string line;
-
-    while (std::getline(stream, line)) {
-        size_t comment_pos = line.find("//");
-
-        if (comment_pos == std::string::npos) {
-            result += line;
-        } else if (comment_pos > 0) {
-            std::string prefix = line.substr(0, comment_pos);
-            auto non_space = std::find_if(prefix.begin(), prefix.end(),
-                                         [](unsigned char c) { return !std::isspace(c); });
-
-            if (non_space != prefix.end()) {
-                result += prefix;
-            }
-        }
-    }
-
-    return result;
-}
-
 TJAParser::TJAParser(const std::filesystem::path& path, int start_delay, PlayerNum player_num)
     : file_path(path), current_ms(static_cast<double>(start_delay)), player_num(player_num) {
 
@@ -155,7 +131,7 @@ void TJAParser::get_metadata() {
             }
             else if (item.find("SUBTITLE") == 0) {
                 std::string region_code = "en";
-                if (item[8] != ':') {
+                if (item.size() > 8 && item[8] != ':') {
                     region_code = to_lower(item.substr(8, 2));
                 }
                 std::string value = join_after_colon(item);
@@ -169,7 +145,7 @@ void TJAParser::get_metadata() {
             }
             else if (item.find("TITLE") == 0) {
                 std::string region_code = "en";
-                if (item[5] != ':') {
+                if (item.size() > 5 && item[5] != ':') {
                     region_code = to_lower(item.substr(5, 2));
                 }
                 metadata.title[region_code] = join_after_colon(item);
@@ -177,10 +153,14 @@ void TJAParser::get_metadata() {
             else if (item.find("BPM") == 0) {
                 std::string data_str = split_after_colon(item);
                 if (data_str.empty()) {
-                    // logger.warning("Invalid BPM value in TJA file");
                     metadata.bpm = 0.0f;
                 } else {
-                    metadata.bpm = std::stof(data_str);
+                    try {
+                        metadata.bpm = std::stof(data_str);
+                    } catch (const std::exception&) {
+                        spdlog::warn("Invalid BPM value '{}' in {}", data_str, file_path.string());
+                        metadata.bpm = 0.0f;
+                    }
                 }
             }
             else if (item.find("WAVE") == 0) {
@@ -196,25 +176,33 @@ void TJAParser::get_metadata() {
             else if (item.find("OFFSET") == 0) {
                 std::string data_str = split_after_colon(item);
                 if (data_str.empty()) {
-                    // logger.warning("Invalid OFFSET value in TJA file");
                     metadata.offset = 0.0f;
                 } else {
-                    metadata.offset = std::stof(data_str);
+                    try {
+                        metadata.offset = std::stof(data_str);
+                    } catch (const std::exception&) {
+                        spdlog::warn("Invalid OFFSET value '{}' in {}", data_str, file_path.string());
+                        metadata.offset = 0.0f;
+                    }
                 }
             }
             else if (item.find("DEMOSTART") == 0) {
                 std::string data_str = split_after_colon(item);
                 if (data_str.empty()) {
-                    // logger.warning("Invalid DEMOSTART value in TJA file");
                     metadata.demostart = 0.0f;
                 } else {
-                    metadata.demostart = std::stof(data_str);
+                    try {
+                        metadata.demostart = std::stof(data_str);
+                    } catch (const std::exception&) {
+                        spdlog::warn("Invalid DEMOSTART value '{}' in {}", data_str, file_path.string());
+                        metadata.demostart = 0.0f;
+                    }
                 }
             }
             else if (item.find("BGMOVIE") == 0) {
                 std::string data_str = split_after_colon(item);
                 if (data_str.empty()) {
-                    // logger.warning("Invalid BGMOVIE value in TJA file");
+                    spdlog::warn("Invalid BGMOVIE value in TJA file: {}", file_path.string());
                     metadata.bgmovie = std::filesystem::path();
                 } else {
                 #ifdef _WIN32
@@ -227,10 +215,14 @@ void TJAParser::get_metadata() {
             else if (item.find("MOVIEOFFSET") == 0) {
                 std::string data_str = split_after_colon(item);
                 if (data_str.empty()) {
-                    // logger.warning("Invalid MOVIEOFFSET value in TJA file");
                     metadata.movieoffset = 0.0f;
                 } else {
-                    metadata.movieoffset = std::stof(data_str);
+                    try {
+                        metadata.movieoffset = std::stof(data_str);
+                    } catch (const std::exception&) {
+                        spdlog::warn("Invalid MOVIEOFFSET value '{}' in {}", data_str, file_path.string());
+                        metadata.movieoffset = 0.0f;
+                    }
                 }
             }
             else if (item.find("PREIMAGE") == 0) {
@@ -266,7 +258,7 @@ void TJAParser::get_metadata() {
                 } else if (course == "0" || course == "easy") {
                     current_diff = 0;
                 } else {
-                    // logger.error("Course level empty in " + file_path.string());
+                    spdlog::warn("Course level empty in " + file_path.string());
                 }
 
                 if (current_diff != -1) {
@@ -278,9 +270,13 @@ void TJAParser::get_metadata() {
                     std::string data_str = split_after_colon(item);
                     if (data_str.empty()) {
                         metadata.course_data[current_diff].level = 0;
-                        // logger.warning("Invalid LEVEL value in TJA file");
                     } else {
-                        metadata.course_data[current_diff].level = static_cast<int>(std::stof(data_str));
+                        try {
+                            metadata.course_data[current_diff].level = static_cast<int>(std::stof(data_str));
+                        } catch (const std::exception&) {
+                            spdlog::warn("Invalid LEVEL value '{}' in {}", data_str, file_path.string());
+                            metadata.course_data[current_diff].level = 0;
+                        }
                     }
                 }
                 else if (item.find("BALLOONNOR") == 0) {
@@ -325,7 +321,7 @@ void TJAParser::get_metadata() {
                         try {
                             metadata.course_data[current_diff].scoreinit = parse_balloon_data(score_init);
                         } catch (const std::exception& e) {
-                            // logger.error("Failed to parse SCOREINIT: " + std::string(e.what()));
+                            spdlog::warn("Failed to parse SCOREINIT: " + std::string(e.what()));
                             metadata.course_data[current_diff].scoreinit = {0, 0};
                         }
                     }
@@ -333,7 +329,11 @@ void TJAParser::get_metadata() {
                 else if (item.find("SCOREDIFF") == 0) {
                     std::string score_diff = split_after_colon(item);
                     if (!score_diff.empty()) {
-                        metadata.course_data[current_diff].scorediff = static_cast<int>(std::stof(score_diff));
+                        try {
+                            metadata.course_data[current_diff].scorediff = static_cast<int>(std::stof(score_diff));
+                        } catch (const std::exception&) {
+                            spdlog::warn("Invalid SCOREDIFF value '{}' in {}", score_diff, file_path.string());
+                        }
                     }
                 }
             }
@@ -407,7 +407,7 @@ TJAParser::notes_to_position(int diff) {
             }
             // Skip unrecognized non-digit lines
             else if (!part.empty() && !std::isdigit(static_cast<unsigned char>(part[0]))) {
-                // logger.warning("Unrecognized command: " + part + " in TJA " + file_path.string());
+                spdlog::warn("Unrecognized token '{}' in {}", part, file_path.string());
                 continue;
             }
 
@@ -782,10 +782,14 @@ std::map<std::string, TJAParser::CommandHandler> TJAParser::build_command_regist
 void TJAParser::handle_MEASURE(const std::string& value, ParserState& state) {
     size_t slash_pos = value.find('/');
     if (slash_pos != std::string::npos) {
-        double num = std::stof(value.substr(0, slash_pos));
-        double den = std::stof(value.substr(slash_pos + 1));
-        if (den != 0.0f) {
-            state.time_signature = num / den;
+        try {
+            double num = std::stof(value.substr(0, slash_pos));
+            double den = std::stof(value.substr(slash_pos + 1));
+            if (den != 0.0f) {
+                state.time_signature = num / den;
+            }
+        } catch (const std::exception&) {
+            spdlog::warn("Invalid #MEASURE value '{}' in {}", value, file_path.string());
         }
     }
 }
@@ -803,6 +807,11 @@ double safe_stof(const std::string& str) {
 void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
     if (state.scroll_type == ScrollType::BMSCROLL) return;
 
+    if (value.empty()) {
+        spdlog::warn("Empty #SCROLL value in {}", file_path.string());
+        return;
+    }
+
     if (value.find('i') != std::string::npos) {
         std::string normalized = value;
         replace_all(normalized, ".i", "j");
@@ -814,32 +823,48 @@ void TJAParser::handle_SCROLL(const std::string& value, ParserState& state) {
         if (std::regex_match(normalized, match, complex_number_regex)) {
             double real = 0.0f;
             double imag = 0.0f;
-
-            if (match[1].length() > 0 && match[1].str().back() != 'j') {
-                real = safe_stof(match[1]);
-            }
-            if (match[2].length() > 0) {
-                std::string imag_str = match[2];
-                imag = safe_stof(imag_str);
-            } else if (match[1].length() > 0 && normalized.back() == 'j') {
-                // Purely imaginary number
-                imag = safe_stof(match[1]);
-                real = 0.0f;
+            try {
+                if (match[1].length() > 0 && match[1].str().back() != 'j') {
+                    real = std::stof(match[1]);
+                }
+                if (match[2].length() > 0) {
+                    std::string imag_str = match[2];
+                    imag = std::stof(imag_str);
+                } else if (match[1].length() > 0 && normalized.back() == 'j') {
+                    imag = std::stof(match[1]);
+                    real = 0.0f;
+                }
+            } catch (const std::exception&) {
+                spdlog::warn("Invalid #SCROLL complex value '{}' in {}", value, file_path.string());
+                return;
             }
             state.scroll_x_modifier = real;
             state.scroll_y_modifier = imag;
         } else {
-            state.scroll_x_modifier = 1.0f;
-            state.scroll_y_modifier = 0.0f;
+            spdlog::warn("Malformed #SCROLL complex value '{}' in {}", value, file_path.string());
         }
     } else {
-        state.scroll_x_modifier = safe_stof(value);
-        state.scroll_y_modifier = 0.0f;
+        try {
+            state.scroll_x_modifier = std::stof(value);
+            state.scroll_y_modifier = 0.0f;
+        } catch (const std::exception&) {
+            spdlog::warn("Invalid #SCROLL value '{}' in {}", value, file_path.string());
+        }
     }
 }
 
 void TJAParser::handle_BPMCHANGE(const std::string& value, ParserState& state) {
-    double parsed_bpm = std::stof(value);
+    if (value.empty()) {
+        spdlog::warn("Empty #BPMCHANGE value in {}", file_path.string());
+        return;
+    }
+    double parsed_bpm;
+    try {
+        parsed_bpm = std::stof(value);
+    } catch (const std::exception&) {
+        spdlog::warn("Invalid #BPMCHANGE value '{}' in {}", value, file_path.string());
+        return;
+    }
 
     if (state.scroll_type == ScrollType::BMSCROLL ||
         state.scroll_type == ScrollType::HBSCROLL) {
@@ -875,7 +900,17 @@ void TJAParser::handle_GOGOEND(const std::string& value, ParserState& state) {
 }
 
 void TJAParser::handle_DELAY(const std::string& value, ParserState& state) {
-    double delay_ms = std::stof(value) * 1000;
+    if (value.empty()) {
+        spdlog::warn("Empty #DELAY value in {}", file_path.string());
+        return;
+    }
+    double delay_ms;
+    try {
+        delay_ms = std::stof(value) * 1000;
+    } catch (const std::exception&) {
+        spdlog::warn("Invalid #DELAY value '{}' in {}", value, file_path.string());
+        return;
+    }
     if (state.scroll_type == ScrollType::BMSCROLL || state.scroll_type == ScrollType::HBSCROLL) {
         if (delay_ms > 0) {
             //Do not modify current_ms, it will be modified live
@@ -909,7 +944,7 @@ void TJAParser::handle_BRANCHSTART(const std::string& value, ParserState& state)
     std::string branch_params = value;
 
     TimelineObject branch_obj;
-    double two_measures = (240000 / state.bpm) * 2;
+    double two_measures = (state.bpm != 0.0) ? (240000.0 / state.bpm) * 2 : 0.0;
     if (state.section_bar.has_value()) {
         branch_obj.start_time = state.section_bar.value().hit_ms - two_measures;
         state.section_bar.reset();
@@ -952,9 +987,20 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
         parts.push_back(token);
     }
 
-    double duration_ms = std::stof(parts[0]) * 1000;
+    if (parts.size() < 3) {
+        spdlog::warn("Malformed #JPOSSCROLL (expected 3 arguments) in {}", file_path.string());
+        return;
+    }
+    double duration_ms;
+    int direction;
+    try {
+        duration_ms = std::stof(parts[0]) * 1000;
+        direction = std::stoi(parts[2]);
+    } catch (const std::exception&) {
+        spdlog::warn("Invalid #JPOSSCROLL values in {}", file_path.string());
+        return;
+    }
     std::string distance_str = parts[1];
-    int direction = std::stoi(parts[2]);
 
     double delta_x = 0.0f;
     double delta_y = 0.0f;
@@ -967,22 +1013,31 @@ void TJAParser::handle_JPOSSCROLL(const std::string& part, ParserState& state) {
 
         std::smatch match;
         if (std::regex_match(normalized, match, complex_number_regex)) {
-            if (match[1].length() > 0 && match[1].str().back() != 'j') {
-                delta_x = std::stof(match[1]);
-            }
-            if (match[2].length() > 0) {
-                std::string imag_str = match[2];
-                delta_y = std::stof(imag_str);
-            } else if (match[1].length() > 0 && normalized.back() == 'j') {
-                // Purely imaginary number
-                delta_y = std::stof(match[1]);
-                delta_x = 0.0f;
+            try {
+                if (match[1].length() > 0 && match[1].str().back() != 'j') {
+                    delta_x = std::stof(match[1]);
+                }
+                if (match[2].length() > 0) {
+                    std::string imag_str = match[2];
+                    delta_y = std::stof(imag_str);
+                } else if (match[1].length() > 0 && normalized.back() == 'j') {
+                    delta_y = std::stof(match[1]);
+                    delta_x = 0.0f;
+                }
+            } catch (const std::exception&) {
+                spdlog::warn("Invalid #JPOSSCROLL distance '{}' in {}", distance_str, file_path.string());
+                return;
             }
         }
     } else {
-        double distance = std::stof(distance_str);
-        delta_x = distance;
-        delta_y = 0.0f;
+        try {
+            double distance = std::stof(distance_str);
+            delta_x = distance;
+            delta_y = 0.0f;
+        } catch (const std::exception&) {
+            spdlog::warn("Invalid #JPOSSCROLL distance '{}' in {}", distance_str, file_path.string());
+            return;
+        }
     }
 
     if (direction == 0) {
@@ -1091,8 +1146,14 @@ void TJAParser::handle_SUDDEN(const std::string& value, ParserState& state) {
     }
 
     if (parts.size() >= 2) {
-        double appear_duration = std::stof(parts[0]);
-        double moving_duration = std::stof(parts[1]);
+        double appear_duration, moving_duration;
+        try {
+            appear_duration = std::stof(parts[0]);
+            moving_duration = std::stof(parts[1]);
+        } catch (const std::exception&) {
+            spdlog::warn("Invalid #SUDDEN values in {}", file_path.string());
+            return;
+        }
         state.sudden_appear = appear_duration * 1000;
         state.sudden_moving = moving_duration * 1000;
 

@@ -15,20 +15,8 @@ void IAudioEngine::load_screen_sounds(const std::string& screen_name) {
     load_sound(sounds_path / "don.wav", "don");
     load_sound(sounds_path / "ka.wav",  "kat");
 
-    for (const auto& entry : fs::directory_iterator(path)) {
-        if (entry.is_directory()) {
-            for (const auto& file : fs::directory_iterator(entry.path())) {
-                load_sound(file.path(),
-                           entry.path().stem().string() + "_" + file.path().stem().string());
-            }
-        } else if (entry.is_regular_file()) {
-            load_sound(entry.path(), entry.path().stem().string());
-        }
-    }
-
-    fs::path global_path = sounds_path / "global";
-    if (fs::exists(global_path)) {
-        for (const auto& entry : fs::directory_iterator(global_path)) {
+    try {
+        for (const auto& entry : fs::directory_iterator(path)) {
             if (entry.is_directory()) {
                 for (const auto& file : fs::directory_iterator(entry.path())) {
                     load_sound(file.path(),
@@ -37,6 +25,26 @@ void IAudioEngine::load_screen_sounds(const std::string& screen_name) {
             } else if (entry.is_regular_file()) {
                 load_sound(entry.path(), entry.path().stem().string());
             }
+        }
+    } catch (const fs::filesystem_error& e) {
+        spdlog::error("load_screen_sounds: error scanning {}: {}", path.string(), e.what());
+    }
+
+    fs::path global_path = sounds_path / "global";
+    if (fs::exists(global_path)) {
+        try {
+            for (const auto& entry : fs::directory_iterator(global_path)) {
+                if (entry.is_directory()) {
+                    for (const auto& file : fs::directory_iterator(entry.path())) {
+                        load_sound(file.path(),
+                                   entry.path().stem().string() + "_" + file.path().stem().string());
+                    }
+                } else if (entry.is_regular_file()) {
+                    load_sound(entry.path(), entry.path().stem().string());
+                }
+            }
+        } catch (const fs::filesystem_error& e) {
+            spdlog::error("load_screen_sounds: error scanning global sounds: {}", e.what());
         }
     }
 }

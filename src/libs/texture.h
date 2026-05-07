@@ -8,7 +8,6 @@
 #include <unordered_set>
 
 namespace fs = std::filesystem;
-using namespace rapidjson;
 
 struct DrawTextureParams {
     ray::Color color = ray::WHITE;

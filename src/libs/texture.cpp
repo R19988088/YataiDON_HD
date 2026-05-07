@@ -1,33 +1,18 @@
 #include "texture.h"
-#include <rapidjson/istreamwrapper.h>
+#include "filesystem.h"
 #include <spdlog/spdlog.h>
-#include <fstream>
 
 void TextureWrapper::init(const fs::path& skin_path) {
     graphics_path = skin_path;
 
     if (!fs::exists(graphics_path)) {
-        spdlog::error("No skin has been configured");
-        return;
+        throw std::runtime_error("The skin path provided is not a valid path");
     }
 
     parent_graphics_path = graphics_path;
-    fs::path config_file = graphics_path / "skin_config.json";
+    auto skin_config_file = read_json_file(graphics_path / "skin_config.json");
 
-    if (!fs::exists(config_file)) {
-        throw std::runtime_error("Skin is missing a skin_config.json");
-    }
-
-    std::ifstream ifs(config_file);
-    IStreamWrapper isw(ifs);
-    Document doc;
-    doc.ParseStream(isw);
-
-    if (doc.HasParseError()) {
-        throw std::runtime_error("Failed to parse skin_config.json");
-    }
-
-    for (auto& m : doc.GetObject()) {
+    for (auto& m : skin_config_file.GetObject()) {
         SC key = skin_config_map.at(m.name.GetString());
         const Value& v = m.value;
 
@@ -51,17 +36,13 @@ void TextureWrapper::init(const fs::path& skin_path) {
     screen_height = static_cast<int>(skin_config[SC::SCREEN].height);
     screen_scale = screen_width / 1280.0f;
 
-    if (doc.HasMember("screen") && doc["screen"].HasMember("parent")) {
-        std::string parent = doc["screen"]["parent"].GetString();
+    if (skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("parent")) {
+        std::string parent = skin_config_file["screen"]["parent"].GetString();
         parent_graphics_path = fs::path("Skins") / parent / "Graphics";
 
-        fs::path parent_config = parent_graphics_path / "skin_config.json";
-        std::ifstream parent_ifs(parent_config);
-        IStreamWrapper parent_isw(parent_ifs);
-        Document parent_doc;
-        parent_doc.ParseStream(parent_isw);
+        auto parent_config = read_json_file(parent_graphics_path / "skin_config.json");
 
-        for (auto& m : parent_doc.GetObject()) {
+        for (auto& m : parent_config.GetObject()) {
             SC key = skin_config_map.at(m.name.GetString());
             const Value& v = m.value;
 
@@ -212,28 +193,18 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
     fs::path parent_anim_file = parent_screen_path / "animation.json";
 
     if (fs::exists(anim_file)) {
-        std::ifstream ifs(anim_file);
-        IStreamWrapper isw(ifs);
-        Document doc;
-        doc.ParseStream(isw);
-
-        if (doc.HasParseError()) {
-            throw std::runtime_error(&"Failed to parse animation.json: " [ doc.GetParseError()]);
-        }
+        auto anim_config = read_json_file(anim_file);
 
         AnimationParser parser;
-        animations = parser.parse_animations(doc);
+        animations = parser.parse_animations(anim_config);
         spdlog::info("Animations loaded for screen: {}", screen_name);
     } else if (parent_graphics_path != graphics_path && fs::exists(parent_anim_file)) {
-        std::ifstream ifs(parent_anim_file);
-        IStreamWrapper isw(ifs);
-        Document doc;
-        doc.ParseStream(isw);
+        auto anim_config = read_json_file(parent_anim_file);
 
         // Scale total_distance values
-        if (doc.IsArray()) {
-            for (SizeType i = 0; i < doc.Size(); i++) {
-                Value& anim = doc[i];
+        if (anim_config.IsArray()) {
+            for (SizeType i = 0; i < anim_config.Size(); i++) {
+                Value& anim = anim_config[i];
                 if (anim.HasMember("total_distance") && !anim["total_distance"].IsObject()) {
                     if (anim["total_distance"].IsInt()) {
                         int val = anim["total_distance"].GetInt();
@@ -256,7 +227,7 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
         }
 
         AnimationParser parser;
-        animations = parser.parse_animations(doc);
+        animations = parser.parse_animations(anim_config);
         spdlog::info("Animations loaded for screen: {}", screen_name);
     }
 }
@@ -271,19 +242,11 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
     auto load_from_path = [&](const fs::path& folder, float tex_scale) {
         fs::path tex_json = folder / "texture.json";
-        if (!fs::exists(tex_json)) return;
 
         try {
-            std::ifstream ifs(tex_json);
-            IStreamWrapper isw(ifs);
-            Document doc;
-            doc.ParseStream(isw);
+            auto tex_config = read_json_file(tex_json);
 
-            if (doc.HasParseError()) {
-                throw std::runtime_error("Failed to parse texture.json in " + folder.string());
-            }
-
-            for (auto& m : doc.GetObject()) {
+            for (auto& m : tex_config.GetObject()) {
                 std::string tex_name = m.name.GetString();
                 const Value& tex_mapping = m.value;
 
@@ -313,6 +276,10 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
                     std::vector<ray::Texture2D> loaded_frames;
                     for (const auto& frame : frames) {
                         loaded_frames.push_back(ray::LoadTexture(frame.string().c_str()));
+                        if (!ray::IsTextureValid(loaded_frames.back())) {
+                            spdlog::error("Failed to load texture {}: Frame {}", tex_name, loaded_frames.size());
+                            return;
+                        }
                     }
 
                     auto framed = std::make_shared<FramedTexture>(tex_name, loaded_frames);
@@ -322,6 +289,10 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
 
                 } else if (fs::exists(tex_file)) {
                     ray::Texture2D tex = ray::LoadTexture(tex_file.string().c_str());
+                    if (!ray::IsTextureValid(tex)) {
+                        spdlog::error("Failed to load texture {}", tex_name);
+                        return;
+                    }
                     auto single = std::make_shared<SingleTexture>(tex_name, tex);
                     read_tex_obj_data(tex_mapping, single.get(), tex_scale);
                     textures[tex_id] = single;

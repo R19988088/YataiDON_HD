@@ -1,7 +1,7 @@
 #include "settings.h"
 #include "../libs/audio.h"
 #include "../libs/input.h"
-#include <rapidjson/istreamwrapper.h>
+#include "../libs/filesystem.h"
 
 void save_config(const Config& config);
 
@@ -11,23 +11,13 @@ void SettingsScreen::on_screen_start() {
     fs::path skin_dir = fs::path("Skins") / global_data.config->paths.skin / "Graphics";
     fs::path tmpl_path = skin_dir / "settings_template.json";
 
-    rapidjson::Document doc;
-    {
-        std::ifstream ifs(tmpl_path);
-        if (!ifs.is_open()) {
-            spdlog::error("settings_template.json not found at {}", tmpl_path.string());
-            doc.Parse(R"({"exit":{"name":{"en":"Exit"},"options":{}}})");
-        } else {
-            rapidjson::IStreamWrapper isw(ifs);
-            doc.ParseStream(isw);
-        }
+    try {
+        box_manager = std::make_unique<SettingsBoxManager>(read_json_file(tmpl_path));
+    } catch (const std::exception& e) {
+        spdlog::error("Failed to load settings template: {}", e.what());
+        screen_init = false;
+        return;
     }
-    if (doc.HasParseError()) {
-        spdlog::error("Failed to parse settings_template.json");
-        doc.Parse(R"({"exit":{"name":{"en":"Exit"},"options":{}}})");
-    }
-
-    box_manager = std::make_unique<SettingsBoxManager>(doc);
     indicator   = Indicator(Indicator::State::SELECT);
     coin_overlay   = CoinOverlay();
     allnet_indicator = AllNetIcon();

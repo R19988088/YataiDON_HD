@@ -12,14 +12,19 @@ NeiroSelector::NeiroSelector(PlayerNum player_num) : player_num(player_num) {
         / "Sounds" / "hit_sounds" / "neiro_list.txt";
 
     std::ifstream neiro_list(neiro_list_path);
-    std::string line;
-    while (std::getline(neiro_list, line)) {
-        if (!line.empty() && line.back() == '\n') line.pop_back();
-        if (!line.empty() && line.back() == '\r') line.pop_back();
-        sounds.push_back(line);
+
+    if (!neiro_list.is_open()) {
+        spdlog::error("Failed to open neiro_list.txt");
+    } else {
+        std::string line;
+        while (std::getline(neiro_list, line)) {
+            if (!line.empty() && line.back() == '\n') line.pop_back();
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            sounds.push_back(line);
+        }
     }
     sounds.push_back("無音");
-
+    selected_sound = std::clamp(selected_sound, 0, (int)sounds.size() - 1);
     load_sound();
     audio->play_sound("voice_hitsound_select_" + std::to_string((int)player_num) + "p", "voice");
 

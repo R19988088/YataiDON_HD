@@ -3,10 +3,8 @@
 #include <numeric>
 
 ScoresManager::ScoresManager(const fs::path& db_path) {
-    sqlite3_open(db_path.string().c_str(), &db_fsd);
-
-    if (db_fsd == nullptr) {
-        throw std::runtime_error("Failed to open database: " + db_path.string());
+    if (sqlite3_open(db_path.string().c_str(), &db_fsd) != SQLITE_OK) {
+        throw std::runtime_error("Failed to open database: " + std::string(sqlite3_errmsg(db_fsd)));
     }
 
     int version = 0;
@@ -51,9 +49,19 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         "drumroll INTEGER NOT NULL,"
         "max_combo INTEGER NOT NULL);";
 
-    sqlite3_exec(db_fsd, create_players.c_str(), nullptr, nullptr, nullptr);
-    sqlite3_exec(db_fsd, create_songs.c_str(), nullptr, nullptr, nullptr);
-    sqlite3_exec(db_fsd, create_scores.c_str(), nullptr, nullptr, nullptr);
+    char* errmsg = nullptr;
+    if (sqlite3_exec(db_fsd, create_players.c_str(), nullptr, nullptr, &errmsg) != SQLITE_OK) {
+        spdlog::error("Failed to create players table: {}", errmsg);
+        sqlite3_free(errmsg);
+    }
+    if (sqlite3_exec(db_fsd, create_songs.c_str(), nullptr, nullptr, &errmsg) != SQLITE_OK) {
+        spdlog::error("Failed to create songs table: {}", errmsg);
+        sqlite3_free(errmsg);
+    }
+    if (sqlite3_exec(db_fsd, create_scores.c_str(), nullptr, nullptr, &errmsg) != SQLITE_OK) {
+        spdlog::error("Failed to create scores table: {}", errmsg);
+        sqlite3_free(errmsg);
+    }
 
 }
 
@@ -151,7 +159,11 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
             snprintf(check_query, sizeof(check_query),
                 "SELECT 1 FROM scores WHERE player_id = 1 AND %s = ? AND difficulty = ? LIMIT 1;",
                 hash_col(diff).c_str());
-            sqlite3_prepare_v2(db_fsd, check_query, -1, &check_stmt, nullptr);
+            if (sqlite3_prepare_v2(db_fsd, check_query, -1, &check_stmt, nullptr) != SQLITE_OK) {
+                spdlog::warn("py_taiko_import: failed to prepare check statement, skipping");
+                skipped++;
+                continue;
+            }
             sqlite3_bind_text(check_stmt, 1, new_hash.c_str(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_int(check_stmt,  2, diff);
             bool exists = (sqlite3_step(check_stmt) == SQLITE_ROW);
@@ -172,7 +184,11 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
                 "INSERT INTO scores "
                 "(player_id, hash, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank) "
                 "VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0);");
-            sqlite3_prepare_v2(db_fsd, ins_query, -1, &ins_stmt, nullptr);
+            if (sqlite3_prepare_v2(db_fsd, ins_query, -1, &ins_stmt, nullptr) != SQLITE_OK) {
+                spdlog::warn("py_taiko_import: failed to prepare insert statement, skipping");
+                skipped++;
+                continue;
+            }
             sqlite3_bind_text(ins_stmt, 1, new_hash.c_str(), -1, SQLITE_TRANSIENT);
             sqlite3_bind_int(ins_stmt,  2, diff);
             sqlite3_bind_int(ins_stmt,  3, score_val);
@@ -202,7 +218,10 @@ std::optional<Score> ScoresManager::get_score(std::string& hash, int difficulty,
         "WHERE player_id = ? AND hash = ? AND difficulty = ?"
         "ORDER BY crown DESC, score DESC "
         "LIMIT 1;");
-    sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("get_score: failed to prepare statement: {}", sqlite3_errmsg(db_fsd));
+        return std::nullopt;
+    }
     sqlite3_bind_int(stmt, 1, player_id);
     sqlite3_bind_text(stmt, 2, hash.c_str(), -1, nullptr);
     sqlite3_bind_int(stmt, 3, difficulty);
@@ -231,7 +250,10 @@ Score ScoresManager::save_score(std::string& hash, int difficulty, int player_id
         "INSERT INTO scores (player_id, hash, difficulty, score, good, ok, bad, drumroll, max_combo, crown, rank) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
 
-    sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("save_score: failed to prepare statement: {}", sqlite3_errmsg(db_fsd));
+        return score;
+    }
 
     sqlite3_bind_int(stmt, 1, player_id);
     sqlite3_bind_text(stmt, 2, hash.c_str(), -1, nullptr);
@@ -276,7 +298,10 @@ void ScoresManager::add_song(const std::array<std::string, 5>& hashes, const std
     const char* query =
         "INSERT OR IGNORE INTO songs (title, subtitle, hash_0, hash_1, hash_2, hash_3, hash_4) "
         "VALUES (?, ?, ?, ?, ?, ?, ?);";
-    sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(db_fsd, query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("add_song: failed to prepare statement: {}", sqlite3_errmsg(db_fsd));
+        return;
+    }
     sqlite3_bind_text(stmt, 1, title.c_str(),    -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt, 2, subtitle.c_str(), -1, SQLITE_STATIC);
     for (int i = 0; i < 5; i++) {
@@ -292,15 +317,25 @@ void ScoresManager::remap_hashes(const std::unordered_map<std::string, std::stri
     sqlite3_exec(db_fsd, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
 
     sqlite3_stmt* scores_stmt;
-    sqlite3_prepare_v2(db_fsd,
-        "UPDATE scores SET hash = ? WHERE hash = ?;",
-        -1, &scores_stmt, nullptr);
+    if (sqlite3_prepare_v2(db_fsd,
+            "UPDATE scores SET hash = ? WHERE hash = ?;",
+            -1, &scores_stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("remap_hashes: failed to prepare scores statement: {}", sqlite3_errmsg(db_fsd));
+        sqlite3_exec(db_fsd, "ROLLBACK;", nullptr, nullptr, nullptr);
+        return;
+    }
 
     std::array<sqlite3_stmt*, 5> song_stmts;
     for (int i = 0; i < 5; i++) {
         std::string q = "UPDATE songs SET hash_" + std::to_string(i)
                       + " = ? WHERE hash_" + std::to_string(i) + " = ?;";
-        sqlite3_prepare_v2(db_fsd, q.c_str(), -1, &song_stmts[i], nullptr);
+        if (sqlite3_prepare_v2(db_fsd, q.c_str(), -1, &song_stmts[i], nullptr) != SQLITE_OK) {
+            spdlog::error("remap_hashes: failed to prepare song statement {}: {}", i, sqlite3_errmsg(db_fsd));
+            sqlite3_finalize(scores_stmt);
+            for (int j = 0; j < i; j++) sqlite3_finalize(song_stmts[j]);
+            sqlite3_exec(db_fsd, "ROLLBACK;", nullptr, nullptr, nullptr);
+            return;
+        }
     }
 
     for (const auto& [old_h, new_h] : old_to_new) {
@@ -330,14 +365,20 @@ int ScoresManager::add_player(const std::string& name) {
     const char* insert_query =
         "INSERT OR IGNORE INTO players (username) "
         "VALUES (?);";
-    sqlite3_prepare_v2(db_fsd, insert_query, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(db_fsd, insert_query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("add_player: failed to prepare insert: {}", sqlite3_errmsg(db_fsd));
+        return -1;
+    }
     sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
     const char* select_query =
         "SELECT player_id FROM players WHERE username = ?;";
-    sqlite3_prepare_v2(db_fsd, select_query, -1, &stmt, nullptr);
+    if (sqlite3_prepare_v2(db_fsd, select_query, -1, &stmt, nullptr) != SQLITE_OK) {
+        spdlog::error("add_player: failed to prepare select: {}", sqlite3_errmsg(db_fsd));
+        return -1;
+    }
     sqlite3_bind_text(stmt, 1, name.c_str(), -1, SQLITE_STATIC);
 
     int id = -1;

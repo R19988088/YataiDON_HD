@@ -458,5 +458,10 @@ void save_config(const Config& config) {
 
     // Write to file
     std::ofstream ofs(config_path);
+    if (!ofs.is_open()) {
+        spdlog::error("Failed to save config.toml");
+        return;
+    }
+
     ofs << config_table;
 };

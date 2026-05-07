@@ -1,6 +1,7 @@
 #include "video.h"
 #include "audio_engine.h"
 #include "texture.h"
+#include <spdlog/spdlog.h>
 
 #ifndef __EMSCRIPTEN__
 
@@ -9,13 +10,18 @@ VideoPlayer::VideoPlayer(fs::path path)
 {
     if (path.extension() == ".png" || path.extension() == ".jpg") {
         texture  = ray::LoadTexture(path.string().c_str());
+        if (!ray::IsTextureValid(texture.value())) {
+            spdlog::error("Failed to load static texture for video: {}", path.stem().string());
+            return;
+        }
         is_static = true;
         return;
     }
 
     container    = av::AVContainer::open(path);
     if (!container) {
-        throw std::runtime_error("Failed to open video: " + path.string());
+        spdlog::error("Failed to open video: {}", path.string());
+        return;
     }
     video_stream = container->streams().video(0);
     audio_stream = container->streams().audio(0);
@@ -125,7 +131,7 @@ bool VideoPlayer::is_started() const {
 }
 
 void VideoPlayer::start(double current_ms) {
-    if (is_static) return;
+    if (is_static || !container) return;
 
     start_ms = current_ms;
     init_frame_generator();
@@ -137,12 +143,12 @@ bool VideoPlayer::is_finished() const {
 }
 
 void VideoPlayer::set_volume(float volume) {
-    if (is_static) return;
+    if (is_static || !container) return;
     audio->set_music_volume(audio_s, volume);
 }
 
 void VideoPlayer::update(double current_ms) {
-    if (is_static) return;
+    if (is_static || !container) return;
 
     audio_manager();
 

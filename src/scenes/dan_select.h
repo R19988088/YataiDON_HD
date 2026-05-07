@@ -28,6 +28,12 @@ private:
     void set_positions(bool init, float duration);
 
     int total_notes_for(const std::vector<DanSongEntry>& songs);
+
+    Exam parse_exam(const rapidjson::Value& e);
+
+    std::optional<DanSongEntry> load_song_entry(const rapidjson::Value& chart);
+
+    std::unique_ptr<DanBox> load_dan_box(const fs::path& json_path);
 };
 
 class DanSelectScreen : public Screen {

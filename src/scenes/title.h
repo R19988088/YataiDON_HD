@@ -39,6 +39,7 @@ public:
     }
 
     void on_screen_start() override;
+    void load_videos();
 
     Screens on_screen_end(Screens next_screen) override;
 

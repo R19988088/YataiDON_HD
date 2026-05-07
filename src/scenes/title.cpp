@@ -5,24 +5,40 @@
 
 void TitleScreen::on_screen_start() {
     Screen::on_screen_start();
-    op_video_list.clear();
-    attract_video_list.clear();
-    fs::path videos_path = fs::path("Skins" / global_data.config->paths.skin / "Videos");
-    for (const auto& entry : fs::recursive_directory_iterator(videos_path / "op_videos")) {
-        if (entry.path().extension() == ".mp4") {
-            op_video_list.push_back(entry.path());
-        }
-    }
-
-    for (const auto& entry : fs::recursive_directory_iterator(videos_path / "attract_videos")) {
-        if (entry.path().extension() == ".mp4") {
-            attract_video_list.push_back(entry.path());
-        }
-    }
+    load_videos();
     state = TitleState::OP_VIDEO;
     hit_taiko_text = std::make_unique<OutlinedText>(tex.skin_config[SC::HIT_TAIKO_TO_START].text[global_data.config->general.language], tex.skin_config[SC::HIT_TAIKO_TO_START].font_size, ray::WHITE, ray::BLACK, false, 4);
     fade_out = (FadeAnimation*)tex.get_animation(13);
     text_overlay_fade = (FadeAnimation*)tex.get_animation(14);
+}
+
+void TitleScreen::load_videos() {
+    op_video_list.clear();
+    attract_video_list.clear();
+    fs::path videos_path = fs::path("Skins" / global_data.config->paths.skin / "Videos");
+    if (!fs::exists(videos_path)) {
+        spdlog::error("Error: videos folder not found");
+        return;
+    }
+    fs::path op_path = videos_path / "op_videos";
+    if (fs::exists(op_path)) {
+        for (const auto& entry : fs::recursive_directory_iterator(op_path)) {
+            if (entry.path().extension() == ".mp4")
+                op_video_list.push_back(entry.path());
+        }
+    } else {
+        spdlog::warn("op_videos folder not found");
+    }
+
+    fs::path attract_path = videos_path / "attract_videos";
+    if (fs::exists(attract_path)) {
+        for (const auto& entry : fs::recursive_directory_iterator(attract_path)) {
+            if (entry.path().extension() == ".mp4")
+                attract_video_list.push_back(entry.path());
+        }
+    } else {
+        spdlog::warn("attract_videos folder not found");
+    }
 }
 
 Screens TitleScreen::on_screen_end(Screens next_screen) {
@@ -34,6 +50,7 @@ Screens TitleScreen::on_screen_end(Screens next_screen) {
 void TitleScreen::scene_manager(double current_ms) {
     if (state == TitleState::OP_VIDEO) {
         if (!op_video.has_value()) {
+            if (op_video_list.empty()) { state = TitleState::WARNING; return; }
             std::mt19937 rng(std::random_device{}());
             std::uniform_int_distribution<size_t> dist(0, op_video_list.size() - 1);
             fs::path chosen = op_video_list[dist(rng)];
@@ -57,6 +74,7 @@ void TitleScreen::scene_manager(double current_ms) {
         }
     } else if (state == TitleState::ATTRACT_VIDEO) {
         if (!attract_video.has_value()) {
+            if (attract_video_list.empty()) { state = TitleState::OP_VIDEO; return; }
             std::mt19937 rng(std::random_device{}());
             std::uniform_int_distribution<size_t> dist(0, attract_video_list.size() - 1);
             fs::path chosen = attract_video_list[dist(rng)];

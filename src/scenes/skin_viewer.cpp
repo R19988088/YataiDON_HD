@@ -1,6 +1,7 @@
 #include "skin_viewer.h"
 #include "../libs/texture.h"
 #include "../libs/input.h"
+#include "../libs/filesystem.h"
 #include <rapidjson/istreamwrapper.h>
 #include <rapidjson/ostreamwrapper.h>
 #include <rapidjson/prettywriter.h>
@@ -31,11 +32,19 @@ void SvEntry::load() {
         });
         for (const auto& f : files) {
             frame_textures.push_back(ray::LoadTexture(f.string().c_str()));
+            if (!ray::IsTextureValid(frame_textures.back())) {
+                spdlog::error("Failed to load texture '{}', frame {}", f.string(), frame_textures.size());
+                continue;
+            }
             ray::GenTextureMipmaps(&frame_textures.back());
             ray::SetTextureFilter(frame_textures.back(), ray::TEXTURE_FILTER_TRILINEAR);
         }
     } else {
         single_tex = ray::LoadTexture(tex_path.string().c_str());
+        if (!ray::IsTextureValid(single_tex)) {
+            spdlog::error("Failed to load texture '{}'", tex_path.string());
+            return;
+        }
         ray::GenTextureMipmaps(&single_tex);
         ray::SetTextureFilter(single_tex, ray::TEXTURE_FILTER_TRILINEAR);
     }
@@ -92,14 +101,15 @@ void SvFolder::parse() {
     if (parsed) return;
     entries.clear();
 
-    fs::path json = folder_path / "texture.json";
-    if (!fs::exists(json)) { parsed = true; return; }
-
-    std::ifstream ifs(json);
-    rj::IStreamWrapper isw(ifs);
-    rj::Document doc;
-    doc.ParseStream(isw);
-    if (doc.HasParseError() || !doc.IsObject()) { parsed = true; return; }
+    rapidjson::Document doc;
+    try {
+        doc = read_json_file(folder_path / "texture.json");
+    } catch (const std::exception& e) {
+        spdlog::error("SvFolder::parse failed for {}: {}", folder_path.string(), e.what());
+        parsed = true;
+        return;
+    }
+    parsed = true;
 
     for (auto& m : doc.GetObject()) {
         SvEntry e;
@@ -147,7 +157,10 @@ void SkinViewerScreen::on_screen_start() {
     loaded_idx = -1;
     mode       = Mode::FOLDERS;
 
-    if (!fs::exists(skin_gfx)) return;
+    if (!fs::exists(skin_gfx)) {
+        spdlog::error("No skin found at '{}'", skin_gfx.string());
+        return;
+    }
 
     for (const auto& e : fs::recursive_directory_iterator(skin_gfx)) {
         if (e.is_regular_file() && e.path().filename() == "texture.json") {
@@ -217,7 +230,6 @@ void SkinViewerScreen::reload_current_folder() {
     auto& f = cur_folder();
     f.reload();
 
-    // Restore by name so a reordered JSON doesn't land on the wrong entry
     tex_idx = 0;
     if (!prev_name.empty()) {
         for (int i = 0; i < (int)f.entries.size(); i++) {
@@ -249,7 +261,10 @@ void SkinViewerScreen::reload_all_folders() {
     folder_idx = 0;
 
     fs::path skin_gfx = fs::path("Skins") / global_data.config->paths.skin / "Graphics";
-    if (!fs::exists(skin_gfx)) return;
+    if (!fs::exists(skin_gfx)) {
+        spdlog::error("No skin found at '{}'", skin_gfx.string());
+        return;
+    }
 
     for (const auto& e : fs::recursive_directory_iterator(skin_gfx)) {
         if (e.is_regular_file() && e.path().filename() == "texture.json") {
@@ -293,17 +308,7 @@ void SkinViewerScreen::save_frame_order() {
 
     fs::path json_path = f.folder_path / "texture.json";
 
-    rj::Document doc;
-    {
-        std::ifstream ifs(json_path);
-        if (!ifs.is_open()) { edit_status = "Error: cannot open texture.json"; return; }
-        rj::IStreamWrapper isw(ifs);
-        doc.ParseStream(isw);
-    }
-    if (doc.HasParseError() || !doc.IsObject()) {
-        edit_status = "Error: invalid JSON";
-        return;
-    }
+    auto doc = read_json_file(json_path);
 
     if (!doc.HasMember(e->name.c_str())) {
         edit_status = "Error: entry '" + e->name + "' not found in JSON";

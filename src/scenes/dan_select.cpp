@@ -2,7 +2,7 @@
 #include "../libs/song_parser.h"
 #include "../libs/input.h"
 #include "../objects/song_select/file_navigator/navigator.h"
-#include <rapidjson/istreamwrapper.h>
+#include "../libs/filesystem.h"
 
 int DanNavigator::total_notes_for(const std::vector<DanSongEntry>& songs) {
     int total = 0;
@@ -20,98 +20,87 @@ int DanNavigator::total_notes_for(const std::vector<DanSongEntry>& songs) {
     return total;
 }
 
+Exam DanNavigator::parse_exam(const rapidjson::Value& e) {
+    Exam exam;
+    exam.type  = e["type"].GetString();
+    exam.range = e["range"].GetString();
+    if (e.HasMember("value") && e["value"].IsArray() && e["value"].Size() >= 2) {
+        exam.red  = e["value"][0].GetInt();
+        exam.gold = e["value"][1].GetInt();
+    }
+    return exam;
+}
+
+std::optional<DanSongEntry> DanNavigator::load_song_entry(const rapidjson::Value& chart) {
+    try {
+        std::string chart_title    = chart["title"].GetString();
+        std::string chart_subtitle = chart.HasMember("subtitle") ? chart["subtitle"].GetString() : "";
+        int diff = chart["difficulty"].GetInt();
+
+        auto path_opt = navigator.find_song_by_title(chart_title, chart_subtitle);
+        if (!path_opt) {
+            spdlog::warn("DanNavigator: song '{}' not found", chart_title);
+            return std::nullopt;
+        }
+
+        SongParser sp(*path_opt);
+        int level = sp.metadata.course_data.count(diff)
+            ? sp.metadata.course_data.at(diff).level : 10;
+
+        int genre = (int)GenreIndex::NAMCO;
+        fs::path box_def_dir = path_opt->parent_path().parent_path();
+        if (fs::exists(box_def_dir / "box.def"))
+            genre = (int)navigator.parse_box_def(box_def_dir).genre_index;
+
+        return DanSongEntry{*path_opt, genre, diff, level};
+    } catch (...) {
+        spdlog::warn("DanNavigator: failed to parse song entry");
+        return std::nullopt;
+    }
+}
+
+std::unique_ptr<DanBox> DanNavigator::load_dan_box(const fs::path& json_path) {
+    auto doc = read_json_file(json_path);
+    std::string title = doc["title"].GetString();
+    int color = doc["color"].GetInt();
+
+    std::vector<DanSongEntry> songs;
+    if (doc.HasMember("charts")) {
+        for (auto& chart : doc["charts"].GetArray()) {
+            if (auto entry = load_song_entry(chart))
+                songs.push_back(*entry);
+        }
+    }
+    if (songs.empty()) return nullptr;
+
+    std::vector<Exam> exams;
+    if (doc.HasMember("exams")) {
+        for (auto& e : doc["exams"].GetArray())
+            exams.push_back(parse_exam(e));
+    }
+
+    return std::make_unique<DanBox>(json_path, title, color, songs, exams, total_notes_for(songs));
+}
+
 void DanNavigator::init(const std::vector<fs::path>& song_paths) {
     boxes.clear();
     selected_index = 0;
 
-    for (const fs::path& root : song_paths) {
-        if (!fs::exists(root)) continue;
-        std::error_code ec;
-        auto it = fs::recursive_directory_iterator(root, fs::directory_options::skip_permission_denied, ec);
-        while (it != fs::end(it)) {
-            if (!ec && it->path().filename() == "dan.json") {
-                fs::path json_path = it->path();
-                try {
-                    std::ifstream ifs(json_path);
-                    if (!ifs.is_open()) { it.increment(ec); continue; }
-                    rapidjson::IStreamWrapper isw(ifs);
-                    rapidjson::Document doc;
-                    doc.ParseStream(isw);
-                    if (doc.HasParseError()) { it.increment(ec); continue; }
-
-                    std::string title = doc["title"].GetString();
-                    int color = doc["color"].GetInt();
-
-                    std::vector<DanSongEntry> songs;
-                    if (doc.HasMember("charts")) {
-                        for (auto& chart : doc["charts"].GetArray()) {
-                            std::string chart_title    = chart["title"].GetString();
-                            std::string chart_subtitle = chart.HasMember("subtitle") ? chart["subtitle"].GetString() : "";
-                            int diff = chart["difficulty"].GetInt();
-
-                            // Strip '--' prefix from subtitle (PyTaiko convention)
-                            if (chart_subtitle.substr(0, 2) == "--")
-                                chart_subtitle = chart_subtitle.substr(2);
-
-                            auto path_opt = navigator.find_song_by_title(chart_title, chart_subtitle);
-                            if (!path_opt.has_value()) {
-                                spdlog::warn("DanNavigator: song '{}' not found", chart_title);
-                                continue;
-                            }
-
-                            try {
-                                SongParser sp(*path_opt);
-                                int level = sp.metadata.course_data.count(diff) ? sp.metadata.course_data.at(diff).level : 10;
-                                int genre = (int)GenreIndex::NAMCO;
-                                fs::path box_def_dir = path_opt->parent_path().parent_path();
-                                if (fs::exists(box_def_dir / "box.def")) {
-                                    BoxDef bd = navigator.parse_box_def(box_def_dir);
-                                    genre = (int)bd.genre_index;
-                                }
-                                songs.push_back({*path_opt, genre, diff, level});
-                            } catch (...) {
-                                spdlog::warn("DanNavigator: failed to parse '{}'", path_opt->string());
-                            }
-                        }
-                    }
-
-                    if (songs.empty()) { it.increment(ec); continue; }
-
-                    std::vector<Exam> exams;
-                    if (doc.HasMember("exams")) {
-                        for (auto& e : doc["exams"].GetArray()) {
-                            Exam exam;
-                            exam.type  = e["type"].GetString();
-                            exam.range = e["range"].GetString();
-                            if (e.HasMember("value") && e["value"].IsArray() && e["value"].Size() >= 2) {
-                                exam.red  = e["value"][0].GetInt();
-                                exam.gold = e["value"][1].GetInt();
-                            }
-                            exams.push_back(exam);
-                        }
-                    }
-
-                    int tn = total_notes_for(songs);
-                    boxes.push_back(std::make_unique<DanBox>(json_path, title, color, songs, exams, tn));
-                    spdlog::debug("DanNavigator: loaded '{}'", title);
-                } catch (const std::exception& ex) {
-                    spdlog::warn("DanNavigator: error loading {}: {}", json_path.string(), ex.what());
-                }
+    for (const fs::path& json_path : song_paths) {
+        try {
+            if (auto box = load_dan_box(json_path)) {
+                boxes.push_back(std::move(box));
             }
-            it.increment(ec);
+        } catch (const std::exception& ex) {
+            spdlog::warn("DanNavigator: error loading {}: {}", json_path.string(), ex.what());
         }
-    }
+    };
 
-    if (boxes.empty()) {
-        spdlog::warn("DanNavigator: no dan courses found");
-        return;
-    }
+    if (boxes.empty()) { spdlog::warn("DanNavigator: no dan courses found"); return; }
 
     set_positions(true, 0);
     boxes[selected_index]->expand_box();
-    for (auto& b : boxes) {
-        b->fade_in(100);
-    }
+    for (auto& b : boxes) b->fade_in(100);
 }
 
 void DanNavigator::set_positions(bool init, float duration) {
