@@ -82,7 +82,6 @@ private:
     void load_collection_recommended(const fs::path& path, const BoxDef& box_def);
     void load_collection_search(const fs::path& path, const BoxDef& box_def);
     void load_songs_inline_async(const fs::path path, BoxDef box_def);
-    void join_loader();
     void flush_pending_boxes();
     void exit_inline();
     void begin_inline_load();
@@ -95,6 +94,7 @@ public:
     fs::path current_path;
     std::string current_search;
 
+    void join_loader();
     void init(std::vector<fs::path> songs_paths);
     void add_to_recent(const SongBox* song);
     void toggle_favorite(SongBox* song);

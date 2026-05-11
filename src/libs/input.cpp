@@ -1,4 +1,5 @@
 #include "input.h"
+#include <array>
 #include <unordered_set>
 
 #ifdef _WIN32
@@ -56,8 +57,8 @@ std::mutex input_mutex;
 std::vector<int> pressed_keys;
 std::vector<int> released_keys;
 
-std::unordered_map<int, bool> previous_key_states;
-std::unordered_map<int, bool> previous_gamepad_states;
+static std::array<bool, 349> previous_key_states{};
+static std::array<bool, 18>  previous_gamepad_states{};
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons) {
 
@@ -246,10 +247,10 @@ void poll_keyboard_once() {
         for (int btn = 1; btn <= 17; btn++) {
             int key = 10000 + btn;
             bool current_state  = ray::IsGamepadButtonDown(gamepad, btn);
-            bool previous_state = previous_gamepad_states[key];
+            bool previous_state = previous_gamepad_states[btn];
             if (current_state  && !previous_state) local_pressed.push_back(key);
             if (!current_state && previous_state)  local_released.push_back(key);
-            previous_gamepad_states[key] = current_state;
+            previous_gamepad_states[btn] = current_state;
         }
 
     }

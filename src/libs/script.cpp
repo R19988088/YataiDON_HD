@@ -3,6 +3,52 @@
 #include "text.h"
 #include <spdlog/spdlog.h>
 
+static DrawTextureParams parse_draw_params(sol::optional<sol::table> params_table) {
+    DrawTextureParams params;
+    if (!params_table) return params;
+    sol::table t = params_table.value();
+
+    sol::optional<sol::table> color = t["color"];
+    if (color) {
+        params.color.r = color.value()[1].get_or(params.color.r);
+        params.color.g = color.value()[2].get_or(params.color.g);
+        params.color.b = color.value()[3].get_or(params.color.b);
+        params.color.a = color.value()[4].get_or(params.color.a);
+    }
+
+    params.frame    = t["frame"].get_or(params.frame);
+    params.scale    = t["scale"].get_or(params.scale);
+    params.center   = t["center"].get_or(params.center);
+    params.x        = t["x"].get_or(params.x);
+    params.y        = t["y"].get_or(params.y);
+    params.x2       = t["x2"].get_or(params.x2);
+    params.y2       = t["y2"].get_or(params.y2);
+    params.rotation = t["rotation"].get_or(params.rotation);
+    params.fade     = t["fade"].get_or(params.fade);
+    params.index    = t["index"].get_or(params.index);
+
+    sol::optional<std::string> mirror = t["mirror"];
+    if (mirror) params.mirror = mirror.value();
+
+    sol::optional<sol::table> origin = t["origin"];
+    if (origin) {
+        params.origin.x = origin.value()[1].get_or(params.origin.x);
+        params.origin.y = origin.value()[2].get_or(params.origin.y);
+    }
+
+    sol::optional<sol::table> src = t["src"];
+    if (src) {
+        ray::Rectangle rect;
+        rect.x      = src.value()["x"].get_or(0.0f);
+        rect.y      = src.value()["y"].get_or(0.0f);
+        rect.width  = src.value()["width"].get_or(0.0f);
+        rect.height = src.value()["height"].get_or(0.0f);
+        params.src  = rect;
+    }
+
+    return params;
+}
+
 void ScriptManager::init(fs::path script_path) {
     lua = std::make_unique<sol::state>();
     lua->open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
@@ -50,7 +96,7 @@ void ScriptManager::shutdown() {
 void ScriptManager::register_lua_bindings() {
     sol::state& lua = *this->lua;
     lua.new_usertype<BaseAnimation>("BaseAnimation",
-        "update", &BaseAnimation::update,
+        "update", [](BaseAnimation& self, double t) { self.update(t); return self.attribute; },
         "restart", &BaseAnimation::restart,
         "start", &BaseAnimation::start,
         "pause", &BaseAnimation::pause,
@@ -67,34 +113,34 @@ void ScriptManager::register_lua_bindings() {
     // Fade animation bindings
     lua.new_usertype<FadeAnimation>("FadeAnimation",
         sol::base_classes, sol::bases<BaseAnimation>(),
-        "update", &FadeAnimation::update,
+        "update", [](FadeAnimation& self, double t) { self.update(t); return self.attribute; },
         "restart", &FadeAnimation::restart
     );
 
     // Move animation bindings
     lua.new_usertype<MoveAnimation>("MoveAnimation",
         sol::base_classes, sol::bases<BaseAnimation>(),
-        "update", &MoveAnimation::update,
+        "update", [](MoveAnimation& self, double t) { self.update(t); return self.attribute; },
         "restart", &MoveAnimation::restart
     );
 
     // Texture change animation bindings
     lua.new_usertype<TextureChangeAnimation>("TextureChangeAnimation",
         sol::base_classes, sol::bases<BaseAnimation>(),
-        "update", &TextureChangeAnimation::update,
+        "update", [](TextureChangeAnimation& self, double t) { self.update(t); return self.attribute; },
         "reset", &TextureChangeAnimation::reset
     );
 
     // Text stretch animation bindings
     lua.new_usertype<TextStretchAnimation>("TextStretchAnimation",
         sol::base_classes, sol::bases<BaseAnimation>(),
-        "update", &TextStretchAnimation::update
+        "update", [](TextStretchAnimation& self, double t) { self.update(t); return self.attribute; }
     );
 
     // Texture resize animation bindings
     lua.new_usertype<TextureResizeAnimation>("TextureResizeAnimation",
         sol::base_classes, sol::bases<BaseAnimation>(),
-        "update", &TextureResizeAnimation::update,
+        "update", [](TextureResizeAnimation& self, double t) { self.update(t); return self.attribute; },
         "restart", &TextureResizeAnimation::restart
     );
 
@@ -329,59 +375,17 @@ void ScriptManager::register_lua_bindings() {
     tex.set_function("draw_texture", [](const std::string& subset, const std::string& texture_name, sol::optional<sol::table> params_table) {
         auto it = tex_id_map.find(subset + "/" + texture_name);
         if (it == tex_id_map.end()) return;
+        script_manager.tex.draw_texture(it->second, parse_draw_params(params_table));
+    });
 
-        DrawTextureParams params;
+    tex.set_function("get_id", [](const std::string& subset, const std::string& texture_name) -> sol::optional<uint32_t> {
+        auto it = tex_id_map.find(subset + "/" + texture_name);
+        if (it == tex_id_map.end()) return sol::nullopt;
+        return it->second;
+    });
 
-        if (params_table) {
-            sol::table t = params_table.value();
-
-            // color (as table {r, g, b, a})
-            sol::optional<sol::table> color = t["color"];
-            if (color) {
-                params.color.r = color.value()[1].get_or(params.color.r);
-                params.color.g = color.value()[2].get_or(params.color.g);
-                params.color.b = color.value()[3].get_or(params.color.b);
-                params.color.a = color.value()[4].get_or(params.color.a);
-            }
-
-            // Simple parameters
-            params.frame = t["frame"].get_or(params.frame);
-            params.scale = t["scale"].get_or(params.scale);
-            params.center = t["center"].get_or(params.center);
-            params.x = t["x"].get_or(params.x);
-            params.y = t["y"].get_or(params.y);
-            params.x2 = t["x2"].get_or(params.x2);
-            params.y2 = t["y2"].get_or(params.y2);
-            params.rotation = t["rotation"].get_or(params.rotation);
-            params.fade = t["fade"].get_or(params.fade);
-            params.index = t["index"].get_or(params.index);
-
-            // mirror (string)
-            sol::optional<std::string> mirror = t["mirror"];
-            if (mirror) {
-                params.mirror = mirror.value();
-            }
-
-            // origin (as table {x, y})
-            sol::optional<sol::table> origin = t["origin"];
-            if (origin) {
-                params.origin.x = origin.value()[1].get_or(params.origin.x);
-                params.origin.y = origin.value()[2].get_or(params.origin.y);
-            }
-
-            // src (as table {x, y, width, height})
-            sol::optional<sol::table> src = t["src"];
-            if (src) {
-                ray::Rectangle rect;
-                rect.x = src.value()["x"].get_or(0.0f);
-                rect.y = src.value()["y"].get_or(0.0f);
-                rect.width = src.value()["width"].get_or(0.0f);
-                rect.height = src.value()["height"].get_or(0.0f);
-                params.src = rect;
-            }
-        }
-
-        script_manager.tex.draw_texture(it->second, params);
+    tex.set_function("draw_id", [](uint32_t id, sol::optional<sol::table> params_table) {
+        script_manager.tex.draw_texture(id, parse_draw_params(params_table));
     });
 
     lua["tex"] = tex;

@@ -326,6 +326,8 @@ void GameScreen::draw() {
         movie->draw();
     } else if (background.has_value()) {
         background->draw_back();
+    } else {
+        ray::ClearBackground(ray::BLACK);
     }
     draw_players();
     if (background.has_value()) background->draw_fore();

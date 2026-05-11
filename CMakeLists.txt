@@ -497,6 +497,14 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
             -fno-omit-frame-pointer
         )
   endif()
+elseif(CMAKE_BUILD_TYPE STREQUAL "Profiling")
+  target_compile_options(${PROJECT_NAME} PRIVATE
+        -O2
+        -g
+        -fno-omit-frame-pointer
+        -DNDEBUG
+    )
+  message(STATUS "Profiler build")
 else()
   target_compile_options(${PROJECT_NAME} PRIVATE
         -O2

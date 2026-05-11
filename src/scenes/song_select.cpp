@@ -178,6 +178,7 @@ std::optional<Screens> SongSelectScreen::update() {
 }
 
 Screens SongSelectScreen::on_screen_end(Screens next_screen) {
+    navigator.join_loader();
     ray::UnloadShader(shader);
     return Screen::on_screen_end(next_screen);
 }

@@ -6,6 +6,8 @@
 #include <sndfile.h>
 #include <samplerate.h>
 #include <memory>
+#include <atomic>
+#include <shared_mutex>
 
 namespace fs = std::filesystem;
 
@@ -102,8 +104,8 @@ private:
     unsigned long buffer_size;
     VolumeConfig volume_presets;
     bool is_ready;
-    mutable std::mutex lock;
-    float master_volume;
+    mutable std::shared_mutex rw_lock;
+    std::atomic<float> master_volume;
 
     PaStream* stream;
     PaStreamParameters output_parameters;
