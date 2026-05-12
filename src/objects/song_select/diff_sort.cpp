@@ -210,7 +210,7 @@ void DiffSortSelect::draw_statistics() {
 void DiffSortSelect::draw_diff_select() {
     tex.draw_texture(DIFF_SORT::BACKGROUND, {.scale=(float)bg_resize->attribute, .center=true});
 
-    tex.draw_texture(DIFF_SORT::BACK, {.fade=diff_fade_in->attribute});
+    tex.draw_texture(tex.get_enum("diff_sort/back_" + global_data.config->general.language), {.fade=diff_fade_in->attribute});
     float offset = tex.skin_config[SC::DIFF_SORT_OFFSET].x;
     for (size_t i = 0; i < num_boxes; i++) {
         if (i == selected_box) {

@@ -235,8 +235,9 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
 void TextureWrapper::load_folder(const std::string& screen_name, const std::string& subset) {
     // Subset leaf name is the key used in tex_id_map (e.g. "notes_nijiiro" from "game/notes_nijiiro")
     const std::string subset_key = fs::path(subset).filename().string();
+    const std::string dedup_key = screen_name + "/" + subset_key;
 
-    if (loaded_subsets.count(subset_key)) return;
+    if (loaded_subsets.count(dedup_key)) return;
 
     int loaded_count = 0;
 
@@ -322,14 +323,15 @@ void TextureWrapper::load_folder(const std::string& screen_name, const std::stri
     if (loaded_count == 0) {
         spdlog::error("No textures loaded for {}/{}", screen_name, subset);
     } else {
-        loaded_subsets.insert(subset_key);
+        loaded_subsets.insert(dedup_key);
     }
 }
 
 void TextureWrapper::unload_folder(const std::string& screen_name, const std::string& subset) {
     const std::string subset_key = fs::path(subset).filename().string();
+    const std::string dedup_key = screen_name + "/" + subset_key;
 
-    if (!loaded_subsets.count(subset_key)) return;
+    if (!loaded_subsets.count(dedup_key)) return;
 
     const std::string prefix = subset_key + "/";
     for (const auto& [path, id] : tex_id_map) {
@@ -338,7 +340,7 @@ void TextureWrapper::unload_folder(const std::string& screen_name, const std::st
         }
     }
 
-    loaded_subsets.erase(subset_key);
+    loaded_subsets.erase(dedup_key);
     spdlog::info("Textures unloaded for folder: {}/{}", screen_name, subset);
 }
 

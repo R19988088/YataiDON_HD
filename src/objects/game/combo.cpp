@@ -1,5 +1,6 @@
 #include "combo.h"
 #include "../../libs/texture.h"
+#include "../../libs/global_data.h"
 #include <math.h>
 
 Combo::Combo(int combo, double current_ms)
@@ -62,7 +63,7 @@ void Combo::draw(float y) {
     if (combo < 100) {
         margin = tex.skin_config[SC::COMBO_MARGIN].x;
         total_width = counter.length() * margin;
-        tex.draw_texture(COMBO::COMBO, {.y=y});
+        tex.draw_texture(tex.get_enum("combo/combo_" + global_data.config->general.language), {.y=y});
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
             tex.draw_texture(COMBO::COUNTER, {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});
@@ -71,7 +72,7 @@ void Combo::draw(float y) {
     } else {
         margin = tex.skin_config[SC::COMBO_MARGIN].y;
         total_width = counter.length() * margin;
-        tex.draw_texture(COMBO::COMBO_100, {.y=y});
+        tex.draw_texture(tex.get_enum("combo/combo_100_" + global_data.config->general.language), {.y=y});
         for (int i = 0; i < counter.size(); i++) {
             char digit = counter[i];
             tex.draw_texture(COMBO::COUNTER_100, {.frame=digit - '0', .x=-(total_width / 2) + (i * margin), .y=y + (float)-stretch->attribute, .y2=(float)stretch->attribute});

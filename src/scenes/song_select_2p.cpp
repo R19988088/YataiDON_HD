@@ -67,9 +67,7 @@ std::optional<Screens> SongSelect2PScreen::update() {
     SongSelectState prev_state = state;
     double current_time = get_current_ms();
     diff_fade_out->update(current_time);
-    text_fade_in->update(current_time);
-    blue_arrow_fade->update(current_time);
-    blue_arrow_move->update(current_time);
+    script->update(current_time);
     select_timer->update(current_time);
     if (diff_select_timer != nullptr) diff_select_timer->update(current_time);
     indicator->update(current_time);
@@ -116,7 +114,7 @@ std::optional<Screens> SongSelect2PScreen::update() {
     }
 
     if (state != prev_state) {
-        text_fade_in->start();
+        script->restart_text_fade();
         if (state == SongSelectState::SEARCHING) {
             search_box.emplace();
         }
@@ -133,7 +131,7 @@ void SongSelect2PScreen::draw() {
     player->draw_background_diffs(state);
     player_2->draw_background_diffs(state);
     if (screen_init) navigator.draw(player->is_ura);
-    tex.draw_texture(GLOBAL::FOOTER, {});
+    script->draw_footer();
 
     bool same_diff = (player->selected_difficulty == player_2->selected_difficulty);
     player->draw(state, same_diff);

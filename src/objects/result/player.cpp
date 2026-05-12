@@ -139,9 +139,9 @@ void ResultPlayer::draw_score_info() {
 void ResultPlayer::draw_total_score() {
     if (!fade_in_finished) return;
     if (global_data.config->general.score_method == ScoreMethod::SHINUCHI) {
-        tex.draw_texture(SCORE::SCORE_SHINUCHI, {.index=is_2p});
+        tex.draw_texture(tex.get_enum("score/score_shinuchi_" + global_data.config->general.language), {.index=is_2p});
     } else {
-        tex.draw_texture(SCORE::SCORE, {.index=is_2p});
+        tex.draw_texture(tex.get_enum("score/score_" + global_data.config->general.language), {.index=is_2p});
     }
     if (score != "") {
         std::string reversed_score = score;
@@ -196,8 +196,8 @@ void ResultPlayer::draw() {
     tex.draw_texture(SCORE::JUDGE_GOOD, {.index=is_2p});
     tex.draw_texture(SCORE::JUDGE_OK, {.index=is_2p});
     tex.draw_texture(SCORE::JUDGE_BAD, {.index=is_2p});
-    tex.draw_texture(SCORE::MAX_COMBO, {.index=is_2p});
-    tex.draw_texture(SCORE::DRUMROLL, {.index=is_2p});
+    tex.draw_texture(tex.get_enum("score/max_combo_" + global_data.config->general.language), {.index=is_2p});
+    tex.draw_texture(tex.get_enum("score/drumroll_" + global_data.config->general.language), {.index=is_2p});
 
     draw_score_info();
     draw_total_score();

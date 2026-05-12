@@ -60,7 +60,7 @@ void ResultGauge::draw() {
     tex.draw_texture(GAUGE::FOOTER, {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
 
     if (gauge_length >= clear_start[(int)difficulty] - 1) {
-        tex.draw_texture(GAUGE::CLEAR, {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
+        tex.draw_texture(tex.get_enum("gauge/clear_" + global_data.config->general.language), {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
         if (state == ResultState::RAINBOW) {
             tex.draw_texture(GAUGE::TAMASHII_FIRE, {.frame=(int)tamashii_fire_change->attribute, .scale=(float)0.75 * scale, .center=true, .fade=gauge_fade_in->attribute, .index=is_2p});
         }
@@ -70,7 +70,7 @@ void ResultGauge::draw() {
             tex.draw_texture(GAUGE::TAMASHII_OVERLAY, {.scale=scale, .fade=std::min(0.5, gauge_fade_in->attribute), .index=is_2p});
         }
     } else {
-        tex.draw_texture(GAUGE::CLEAR_DARK, {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
+        tex.draw_texture(tex.get_enum("gauge/clear_dark_" + global_data.config->general.language), {.scale=scale, .fade=gauge_fade_in->attribute, .index=(int)difficulty+(is_2p*3)});
         tex.draw_texture(GAUGE::TAMASHII_DARK, {.scale=scale, .fade=gauge_fade_in->attribute, .index=is_2p});
     }
 }

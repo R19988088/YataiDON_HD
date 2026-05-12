@@ -105,7 +105,7 @@ struct ComboFixture : public SandboxScreen::Fixture {
 
     ComboFixture() { name = "Combo"; }
 
-    uint32_t anchor_texture_id() override { return COMBO::COMBO; }
+    uint32_t anchor_texture_id() override { return COMBO::COMBO_JA; }
 
     void reset(double ms) override {
         count = 0;

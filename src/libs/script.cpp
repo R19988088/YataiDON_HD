@@ -380,8 +380,10 @@ void ScriptManager::register_lua_bindings() {
 
     tex.set_function("get_id", [](const std::string& subset, const std::string& texture_name) -> sol::optional<uint32_t> {
         auto it = tex_id_map.find(subset + "/" + texture_name);
-        if (it == tex_id_map.end()) return sol::nullopt;
-        return it->second;
+        if (it != tex_id_map.end()) return it->second;
+        it = tex_id_map.find(subset + "/" + texture_name + "_" + global_data.config->general.language);
+        if (it != tex_id_map.end()) return it->second;
+        return std::nullopt;
     });
 
     tex.set_function("draw_id", [](uint32_t id, sol::optional<sol::table> params_table) {

@@ -8,13 +8,8 @@ void SongSelectScreen::on_screen_start() {
     audio.play_sound("bgm", "music");
     audio.play_sound("voice_enter", "voice");
 
-    diff_fade_out          = (FadeAnimation*)tex.get_animation(2);
-    text_fade_in           = (FadeAnimation*)tex.get_animation(4);
-    blue_arrow_fade        = (FadeAnimation*)tex.get_animation(29);
-    blue_arrow_move        = (MoveAnimation*)tex.get_animation(30);
-    blue_arrow_fade->start();
-    blue_arrow_move->start();
-    text_fade_in->start();
+    diff_fade_out = (FadeAnimation*)tex.get_animation(2);
+    script = std::make_unique<SongSelectScript>();
 
     shader = ray::LoadShader("shader/dummy.vs", "shader/colortransform.fs");
 
@@ -107,9 +102,7 @@ std::optional<Screens> SongSelectScreen::update() {
     SongSelectState prev_state = state;
     double current_time = get_current_ms();
     diff_fade_out->update(current_time);
-    text_fade_in->update(current_time);
-    blue_arrow_fade->update(current_time);
-    blue_arrow_move->update(current_time);
+    script->update(current_time);
     select_timer->update(current_time);
     if (diff_select_timer != nullptr) diff_select_timer->update(current_time);
     indicator->update(current_time);
@@ -163,7 +156,7 @@ std::optional<Screens> SongSelectScreen::update() {
     }
 
     if (state != prev_state) {
-        text_fade_in->start();
+        script->restart_text_fade();
         if (state == SongSelectState::SONG_SELECTED) {
             diff_select_timer = std::make_unique<Timer>(60, current_time, [this]() { select_song((SongBox*)navigator.get_current_item()); });
         } else if (state == SongSelectState::SEARCHING) {
@@ -184,20 +177,13 @@ Screens SongSelectScreen::on_screen_end(Screens next_screen) {
 }
 
 void SongSelectScreen::draw_overlays() {
-    if (state == SongSelectState::BROWSING) {
-        tex.draw_texture(GLOBAL::ARROW, {.x=-((float)blue_arrow_move->attribute * 2), .fade=blue_arrow_fade->attribute, .index=0});
-        tex.draw_texture(GLOBAL::ARROW, {.mirror="horizontal", .x=  (float)blue_arrow_move->attribute * 2,  .fade=blue_arrow_fade->attribute, .index=1});
-    }
+    script->draw_overlays(state);
 
     tex.draw_texture(GLOBAL::SONG_NUM_BG, {.x=-(song_num->width-127), .x2=(song_num->width-127), .fade=0.75});
     song_num->draw(tex.skin_config[SC::SONG_NUM].x-song_num->width, tex.skin_config[SC::SONG_NUM].y, 1.0);
     if (state == SongSelectState::SONG_SELECTED) {
-        tex.draw_texture(GLOBAL::DIFFICULTY_SELECT, {.fade=text_fade_in->attribute});
-        tex.draw_texture(GLOBAL::SONG_SELECT, {.fade=1 - text_fade_in->attribute});
         if (diff_select_timer) diff_select_timer->draw();
     } else {
-        tex.draw_texture(GLOBAL::DIFFICULTY_SELECT, {.fade=1 - text_fade_in->attribute});
-        tex.draw_texture(GLOBAL::SONG_SELECT, {.fade=text_fade_in->attribute});
         select_timer->draw();
     }
     allnet_indicator.draw();
@@ -208,7 +194,7 @@ void SongSelectScreen::draw_overlays() {
 void SongSelectScreen::draw() {
     player->draw_background_diffs(state);
     if (screen_init) navigator.draw(player->is_ura);
-    tex.draw_texture(GLOBAL::FOOTER, {});
+    script->draw_footer();
 
     player->draw(state);
 

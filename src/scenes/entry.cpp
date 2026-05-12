@@ -13,7 +13,8 @@ void EntryScreen::on_screen_start() {
 
     timer = std::make_unique<Timer>(60, get_current_ms(), [this]() { box_manager->select_box(); });
 
-    lua_entry.start_side_select();
+    lua_entry = std::make_unique<EntryScript>();
+    lua_entry->start_side_select();
 
     //chara = new Chara2D(0);
     announce_played = false;
@@ -79,12 +80,12 @@ std::optional<Screens> EntryScreen::handle_input() {
             NameplateConfig plate_info = global_data.config->nameplate_2p;
             nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 1);
             //chara = new Chara2D(1);
-            lua_entry.restart_side_select();
+            lua_entry->restart_side_select();
             side = 1;
         } else if (players[0] && players[0]->player_num == PlayerNum::P2 && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
             audio.play_sound("don", "sound");
             state = EntryState::SELECT_SIDE;
-            lua_entry.restart_side_select();
+            lua_entry->restart_side_select();
             side = 1;
         }
     }
@@ -94,7 +95,7 @@ std::optional<Screens> EntryScreen::handle_input() {
 std::optional<Screens> EntryScreen::update() {
     Screen::update();
     double current_time = get_current_ms();
-    lua_entry.update(current_time);
+    lua_entry->update(current_time);
     box_manager->update(current_time, is_2p);
     timer->update(current_time);
     nameplate.update(current_time);
@@ -117,12 +118,12 @@ std::optional<Screens> EntryScreen::update() {
 }
 
 void EntryScreen::draw_background() {
-    lua_entry.draw_background();
+    lua_entry->draw_background();
 }
 
 void EntryScreen::draw_side_select(float fade) {
     auto& skin = tex.skin_config;
-    lua_entry.draw_side_select(side);
+    lua_entry->draw_side_select(side);
 
     //chara->draw(skin["chara_entry"].x, skin["chara_entry"].y);
     nameplate.draw(skin[SC::NAMEPLATE_ENTRY].x, skin[SC::NAMEPLATE_ENTRY].y, fade);
@@ -146,7 +147,7 @@ void EntryScreen::draw() {
     draw_player_drum();
 
     if (state == EntryState::SELECT_SIDE) {
-        draw_side_select(lua_entry.get_side_select_fade());
+        draw_side_select(lua_entry->get_side_select_fade());
     } else if (state == EntryState::SELECT_MODE) {
         draw_mode_select();
     }
@@ -155,7 +156,7 @@ void EntryScreen::draw() {
                      (players[1] && players[1]->player_num == PlayerNum::P1);
     bool p2_joined = (players[0] && players[0]->player_num == PlayerNum::P2) ||
                      (players[1] && players[1]->player_num == PlayerNum::P2);
-    lua_entry.draw_footer(p1_joined, p2_joined);
+    lua_entry->draw_footer(p1_joined, p2_joined);
 
     for (auto& player : players) {
         if (player) {
@@ -163,7 +164,7 @@ void EntryScreen::draw() {
         }
     }
 
-    lua_entry.draw_player_entry();
+    lua_entry->draw_player_entry();
 
     if (box_manager->is_finished()) {
         ray::DrawRectangle(0, 0, tex.screen_width, tex.screen_height, ray::BLACK);

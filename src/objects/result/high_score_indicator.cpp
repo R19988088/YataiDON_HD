@@ -1,5 +1,6 @@
 #include "high_score_indicator.h"
 #include "../../libs/texture.h"
+#include "../../libs/global_data.h"
 
 HighScoreIndicator::HighScoreIndicator(int old_score, int new_score, bool is_2p)
 : is_2p(is_2p) {
@@ -16,7 +17,7 @@ void HighScoreIndicator::update(double current_ms) {
 }
 
 void HighScoreIndicator::draw() {
-    tex.draw_texture(SCORE::HIGH_SCORE, {.y=(float)move->attribute, .fade=fade->attribute, .index=is_2p});
+    tex.draw_texture(tex.get_enum("score/high_score_" + global_data.config->general.language), {.y=(float)move->attribute, .fade=fade->attribute, .index=is_2p});
     std::string score_str = std::to_string(score_diff);
     std::string reversed_score = score_str;
     std::reverse(reversed_score.begin(), reversed_score.end());

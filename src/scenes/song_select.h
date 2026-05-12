@@ -2,6 +2,7 @@
 
 #include "../libs/screen.h"
 #include "../objects/song_select/player.h"
+#include "../objects/song_select/song_select_script.h"
 #include "../objects/song_select/dan_transition.h"
 #include "../objects/song_select/search_box.h"
 #include "../objects/global/allnet_indicator.h"
@@ -14,9 +15,7 @@
 class SongSelectScreen : public Screen {
 protected:
     FadeAnimation* diff_fade_out;
-    FadeAnimation* text_fade_in;
-    FadeAnimation* blue_arrow_fade;
-    MoveAnimation* blue_arrow_move;
+    std::unique_ptr<SongSelectScript> script;
 
     SongSelectState state;
 

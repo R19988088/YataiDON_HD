@@ -106,7 +106,7 @@ struct HighScoreIndicatorFixture : public SandboxScreen::Fixture {
 
     HighScoreIndicatorFixture() { name = "HighScoreIndicator"; screen = "result"; }
 
-    uint32_t anchor_texture_id() override { return SCORE::HIGH_SCORE; }
+    uint32_t anchor_texture_id() override { return SCORE::HIGH_SCORE_JA; }
 
     void reset(double) override { type_idx = 0; active.emplace(0, diffs[type_idx], false); }
     void on_space(double) override { active.emplace(0, diffs[type_idx], false); }

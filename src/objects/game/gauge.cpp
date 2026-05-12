@@ -203,7 +203,7 @@ void Gauge::draw(float y) {
 
     // Draw clear status indicators
     if (gauge_length_int >= clear_point - 1) {
-        tex.draw_texture(GAUGE::CLEAR, {
+        tex.draw_texture(tex.get_enum("gauge/clear_" + global_data.config->general.language), {
             .y = y,
             .index = std::min(2, difficulty) + (mirrored * 3)
         });
@@ -225,7 +225,7 @@ void Gauge::draw(float y) {
             tex.draw_texture(GAUGE::TAMASHII_OVERLAY, {.y = y, .fade = 0.5f, .index = mirrored});
         }
     } else {
-        tex.draw_texture(GAUGE::CLEAR_DARK, {.y = y, .index = std::min(2, difficulty) + (mirrored * 3)});
+        tex.draw_texture(tex.get_enum("gauge/clear_dark_" + global_data.config->general.language), {.y = y, .index = std::min(2, difficulty) + (mirrored * 3)});
 
         tex.draw_texture(GAUGE::TAMASHII_DARK, {.y = y, .index = mirrored});
     }

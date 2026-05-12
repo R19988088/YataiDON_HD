@@ -1395,7 +1395,7 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     }
 
     if (modifiers.auto_play) {
-        tex.draw_texture(LANE::AUTO_ICON, {.y=y, .index=is_2p});
+        tex.draw_texture(tex.get_enum("lane/auto_icon_" + global_data.config->general.language), {.y=y, .index=is_2p});
     } else {
         if (is_2p) {
             nameplate.draw(tex.skin_config[SC::GAME_NAMEPLATE_2P].x, y + tex.skin_config[SC::GAME_NAMEPLATE_2P].y);

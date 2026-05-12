@@ -23,7 +23,7 @@ private:
     std::unique_ptr<BoxManager> box_manager;
     EntryState state;
 
-    EntryScript lua_entry;
+    std::unique_ptr<EntryScript> lua_entry;
     Nameplate nameplate;
     CoinOverlay coin_overlay;
     AllNetIcon allnet_indicator;

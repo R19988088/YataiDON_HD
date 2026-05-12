@@ -137,9 +137,9 @@ void SongBox::draw_closed() {
         ray::Rectangle dest = {position + tex.skin_config[SC::PREIMAGE].x, tex.skin_config[SC::PREIMAGE].y, tex.skin_config[SC::PREIMAGE].width, tex.skin_config[SC::PREIMAGE].height};
         ray::DrawTexturePro(preimage.value(), src, dest, {0,0}, 0, ray::Fade(ray::WHITE, fade->attribute));
     } else if (parser.ex_data.limited_time)
-        tex.draw_texture(YELLOW_BOX::EX_DATA_LIMITED_TIME_BALLOON, {.x=position, .fade=fade->attribute});
+        tex.draw_texture(tex.get_enum("yellow_box/ex_data_limited_time_balloon_" + global_data.config->general.language), {.x=position, .fade=fade->attribute});
     else if (is_new)
-        tex.draw_texture(YELLOW_BOX::EX_DATA_NEW_SONG_BALLOON, {.x=position, .fade=fade->attribute});
+        tex.draw_texture(tex.get_enum("yellow_box/ex_data_new_song_balloon_" + global_data.config->general.language), {.x=position, .fade=fade->attribute});
 
     int highest_key = -1;
     for (int i = 0; i < (int)scores.size(); ++i) {
@@ -156,9 +156,9 @@ void SongBox::draw_closed() {
 
 void SongBox::draw_diff_select(bool is_ura) {
     BaseBox::draw_diff_select(is_ura);
-    tex.draw_texture(DIFF_SELECT::BACK,   {.fade=diff_fade_in->attribute});
-    tex.draw_texture(DIFF_SELECT::OPTION, {.fade=diff_fade_in->attribute});
-    tex.draw_texture(DIFF_SELECT::NEIRO,  {.fade=diff_fade_in->attribute});
+    tex.draw_texture(tex.get_enum("diff_select/back_" + global_data.config->general.language),   {.fade=diff_fade_in->attribute});
+    tex.draw_texture(tex.get_enum("diff_select/option_" + global_data.config->general.language), {.fade=diff_fade_in->attribute});
+    tex.draw_texture(tex.get_enum("diff_select/neiro_" + global_data.config->general.language),  {.fade=diff_fade_in->attribute});
 
     float offset_x     = tex.skin_config[SC::YB_DIFF_OFFSET_DIFF_SELECT].x;
     float offset_y     = tex.skin_config[SC::YB_DIFF_OFFSET_DIFF_SELECT].y;
@@ -235,14 +235,14 @@ void SongBox::draw_open() {
 
     if      (parser.ex_data.new_audio)     tex.draw_texture(YELLOW_BOX::EX_DATA_NEW_AUDIO,     {.fade=open_fade->attribute});
     else if (parser.ex_data.old_audio)     tex.draw_texture(YELLOW_BOX::EX_DATA_OLD_AUDIO,     {.fade=open_fade->attribute});
-    else if (parser.ex_data.limited_time)  tex.draw_texture(YELLOW_BOX::EX_DATA_LIMITED_TIME,  {.fade=open_fade->attribute});
-    else if (is_new)      tex.draw_texture(YELLOW_BOX::EX_DATA_NEW_SONG,      {.fade=open_fade->attribute});
+    else if (parser.ex_data.limited_time)  tex.draw_texture(tex.get_enum("yellow_box/ex_data_limited_time_" + global_data.config->general.language),  {.fade=open_fade->attribute});
+    else if (is_new)      tex.draw_texture(tex.get_enum("yellow_box/ex_data_new_song_" + global_data.config->general.language),      {.fade=open_fade->attribute});
     if (global_data.config->general.display_bpm) {
         bpm_text->draw({.x = tex.skin_config[SC::SONG_BOX_BPM].x, .y = tex.skin_config[SC::SONG_BOX_BPM].y, .fade=open_fade->attribute});
     }
 
     if (is_favorite)
-        tex.draw_texture(tex_id_map.at("yellow_box/favorite_" + std::to_string((int)global_data.player_num) + "p"), {.fade=open_fade->attribute});
+        tex.draw_texture(tex_id_map.at("yellow_box/favorite_" + std::to_string((int)global_data.player_num) + "p_" + global_data.config->general.language), {.fade=open_fade->attribute});
 
     for (int i = 0; i < 4; i++) {
         tex.draw_texture(YELLOW_BOX::DIFFICULTY_BAR, {.frame=i, .x=i*offset, .fade=open_fade->attribute});
