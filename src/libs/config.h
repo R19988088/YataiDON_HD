@@ -20,6 +20,7 @@ struct GeneralConfig {
     int practice_mode_bar_delay;
     std::string score_method;
     bool display_bpm;
+    int song_limit;
 };
 
 struct NameplateConfig {

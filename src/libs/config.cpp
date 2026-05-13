@@ -213,6 +213,7 @@ Config get_config() {
         config.general.practice_mode_bar_delay = (*general)["practice_mode_bar_delay"].value_or(0);
         config.general.score_method = (*general)["score_method"].value_or("standard");
         config.general.display_bpm = (*general)["display_bpm"].value_or(false);
+        config.general.song_limit = (*general)["song_limit"].value_or(0);
     }
 
     // Parse nameplate_1p
@@ -348,7 +349,8 @@ void save_config(const Config& config) {
         {"log_level", config.general.log_level},
         {"fake_online", config.general.fake_online},
         {"practice_mode_bar_delay", config.general.practice_mode_bar_delay},
-        {"score_method", config.general.score_method}
+        {"score_method", config.general.score_method},
+        {"song_limit", config.general.song_limit}
     });
 
     // Nameplate 1P

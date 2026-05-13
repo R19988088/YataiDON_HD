@@ -3,6 +3,7 @@ fps_counter = false
 audio_offset = 0
 visual_offset = 0
 language = "en"
+song_limit = 0
 timer_frozen = true
 song_timer = false
 judge_counter = false

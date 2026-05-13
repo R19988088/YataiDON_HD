@@ -28,6 +28,7 @@
 #include "scenes/song_select_2p.h"
 #include "scenes/song_select_practice.h"
 #include "scenes/title.h"
+#include "scenes/game_over.h"
 
 #include "objects/global/fps_counter.h"
 
@@ -80,7 +81,7 @@ void draw_outer_border(int screen_width, int screen_height, ray::Color last_colo
 
 Screens check_args(int argc, char* argv[]) {
     if (argc == 1) {
-        return Screens::LOADING;
+        return Screens::GAME_OVER;
     }
 
     std::string song_path;
@@ -302,6 +303,7 @@ int main(int argc, char* argv[]) {
     L.screens[Screens::INPUT_CALI]      = std::make_unique<InputCaliScreen>();
     L.screens[Screens::SKIN_VIEWER]     = std::make_unique<SkinViewerScreen>();
     L.screens[Screens::SANDBOX]         = std::make_unique<SandboxScreen>();
+    L.screens[Screens::GAME_OVER]       = std::make_unique<GameOverScreen>();
 
     update_camera_for_window_size(L.camera, L.screen_width, L.screen_height);
 

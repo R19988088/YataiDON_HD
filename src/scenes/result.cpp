@@ -53,6 +53,9 @@ std::optional<Screens> ResultScreen::update() {
         fade_out->update(current_time);
         if (fade_out->is_finished) {
             fade_out->update(current_time);
+            if (global_data.config->general.song_limit > 0 && global_data.config->general.song_limit == global_data.songs_played + 1) {
+                return on_screen_end(Screens::GAME_OVER);
+            }
             return on_screen_end(Screens::SONG_SELECT);
         }
     }

@@ -24,7 +24,8 @@ enum class Screens {
     LOADING,
     INPUT_CALI,
     SKIN_VIEWER,
-    SANDBOX
+    SANDBOX,
+    GAME_OVER
 };
 
 inline std::string screens_to_string(Screens screen) {
@@ -50,6 +51,7 @@ inline std::string screens_to_string(Screens screen) {
         "SKIN_VIEWER",
         "SANDBOX",
         "LOADING",
+        "GAME_OVER"
     };
     return names[static_cast<int>(screen)];
 }
