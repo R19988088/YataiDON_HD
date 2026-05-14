@@ -66,7 +66,7 @@ std::string test_encodings(const std::filesystem::path& file_path) {
 }
 
 TJAParser::TJAParser(const std::filesystem::path& path, int start_delay, PlayerNum player_num)
-    : file_path(path), current_ms(static_cast<double>(start_delay)), player_num(player_num) {
+    : file_path(path), start_ms(static_cast<double>(start_delay)), current_ms(static_cast<double>(start_delay)), player_num(player_num) {
 
     encoding = test_encodings(file_path);
 
@@ -363,6 +363,11 @@ TJAParser::notes_to_position(int diff) {
     if (metadata.course_data.count(diff) == 0) {
         return std::make_tuple(NoteList(), std::deque<NoteList>(), std::deque<NoteList>(), std::deque<NoteList>());
     }
+    current_ms = start_ms;
+    master_notes = NoteList();
+    branch_m = std::deque<NoteList>();
+    branch_e = std::deque<NoteList>();
+    branch_n = std::deque<NoteList>();
     if (cached_cmds.empty()) {
         auto cmds = build_command_registry();
         cached_cmds = std::vector<std::pair<std::string, CommandHandler>>(cmds.begin(), cmds.end());

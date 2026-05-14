@@ -250,6 +250,7 @@ public:
     std::string get_diff_hash(int difficulty);
 
 private:
+    double start_ms;
     double current_ms;
     NoteList master_notes;
     PlayerNum player_num;
