@@ -26,17 +26,17 @@ void Timer::update(double current_ms) {
         last_time = current_ms;
         counter = std::to_string(time);
         if (time < 10) {
-            audio.play_sound("timer_blip", "sound");
+            audio.play_sound("timer_blip", VolumePreset::SOUND);
             num_resize->start();
             highlight_fade->start();
             highlight_resize->start();
         }
         if (time == 10) {
-            audio.play_sound("voice_timer_10", "voice");
+            audio.play_sound("voice_timer_10", VolumePreset::VOICE);
         } else if (time == 5) {
-            audio.play_sound("voice_timer_5", "voice");
+            audio.play_sound("voice_timer_5", VolumePreset::VOICE);
         } else if (time == 0) {
-            audio.play_sound("voice_timer_0", "voice");
+            audio.play_sound("voice_timer_0", VolumePreset::VOICE);
         }
     }
 }

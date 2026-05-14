@@ -28,7 +28,7 @@ ClearAnimation::ClearAnimation(bool is_2p)
     clear_highlight_fade_in = (FadeAnimation*)tex.get_animation(56);
     clear_highlight_fade_in->start();
 
-    audio.play_sound("clear", "sound");
+    audio.play_sound("clear", VolumePreset::SOUND);
 }
 
 void ClearAnimation::update(double current_ms) {

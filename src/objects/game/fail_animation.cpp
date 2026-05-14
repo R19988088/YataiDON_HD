@@ -25,7 +25,7 @@ FailAnimation::FailAnimation(bool is_2p)
     bachio_up->start();
     bachio_down->start();
 
-    audio.play_sound("fail", "sound");
+    audio.play_sound("fail", VolumePreset::SOUND);
 }
 
 void FailAnimation::update(double current_ms) {

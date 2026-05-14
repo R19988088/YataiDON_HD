@@ -77,7 +77,7 @@ void FolderBox::update(double current_time) {
 
     if (!is_open_prev && yellow_box_opened) {
         if (!audio.is_sound_playing("voice_enter")) {
-            audio.play_sound("genre_voice_" + std::to_string((int)genre_index), "voice");
+            audio.play_sound("genre_voice_" + std::to_string((int)genre_index), VolumePreset::VOICE);
         }
     } else if (!yellow_box_opened && audio.is_sound_playing("genre_voice_" + std::to_string((int)genre_index))) {
         audio.stop_sound("genre_voice_" + std::to_string((int)genre_index));

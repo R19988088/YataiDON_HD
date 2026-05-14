@@ -74,7 +74,7 @@ void SongBox::update(double current_time) {
         audio.stop_sound("bgm");
         audio.load_music_stream(parser.metadata.wave, "preview");
         if (audio.is_music_stream_valid("preview")) {
-            audio.play_music_stream("preview", "music");
+            audio.play_music_stream("preview", VolumePreset::MUSIC);
             audio.seek_music_stream("preview", parser.metadata.demostart);
         }
     }
@@ -105,7 +105,7 @@ void SongBox::close_box() {
             audio.stop_music_stream("preview");
             audio.unload_music_stream("preview");
         }
-        audio.play_sound("bgm", "music");
+        audio.play_sound("bgm", VolumePreset::MUSIC);
         music_playing = false;
     }
 }

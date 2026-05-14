@@ -85,7 +85,7 @@ std::optional<Screens> Game2PScreen::update() {
         if (ms_from_start >= players[0]->end_time + 8533.34) {
             if (!result_transition.is_started) {
                 result_transition.start();
-                audio.play_sound("result_transition", "voice");
+                audio.play_sound("result_transition", VolumePreset::VOICE);
             }
         }
     }
@@ -95,7 +95,7 @@ std::optional<Screens> Game2PScreen::update() {
         players.clear();
         parser_2p.reset();
         init_tja(global_data.session_data[(int)PlayerNum::P1].selected_song);
-        audio.play_sound("restart", "sound");
+        audio.play_sound("restart", VolumePreset::SOUND);
         song_started = false;
     }
     if (ray::IsKeyPressed(global_data.config->keys.back_key)) {

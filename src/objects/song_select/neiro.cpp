@@ -26,7 +26,7 @@ NeiroSelector::NeiroSelector(PlayerNum player_num) : player_num(player_num) {
     sounds.push_back("無音");
     selected_sound = std::clamp(selected_sound, 0, (int)sounds.size() - 1);
     load_sound();
-    audio.play_sound("voice_hitsound_select_" + std::to_string((int)player_num) + "p", "voice");
+    audio.play_sound("voice_hitsound_select_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
 
     move = (MoveAnimation*)tex.get_animation(28, true);
     move->start();
@@ -64,7 +64,7 @@ void NeiroSelector::left() {
 
     direction = -1;
     if (selected_sound == (int)sounds.size() - 1) return;
-    audio.play_sound(curr_sound, "hitsound");
+    audio.play_sound(curr_sound, VolumePreset::HITSOUND);
 }
 
 void NeiroSelector::right() {
@@ -80,7 +80,7 @@ void NeiroSelector::right() {
 
     direction = 1;
     if (selected_sound == (int)sounds.size() - 1) return;
-    audio.play_sound(curr_sound, "hitsound");
+    audio.play_sound(curr_sound, VolumePreset::HITSOUND);
 }
 
 void NeiroSelector::confirm() {

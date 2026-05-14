@@ -21,7 +21,7 @@ void EntryScreen::on_screen_start() {
     players.clear();
     players.resize(2);
 
-    audio.play_sound("bgm", "music");
+    audio.play_sound("bgm", VolumePreset::MUSIC);
 }
 
 Screens EntryScreen::on_screen_end(Screens next_screen) {
@@ -47,13 +47,13 @@ std::optional<Screens> EntryScreen::handle_input() {
                 players[0]->start_animations();
                 is_2p = false;
             }
-            audio.play_sound("cloud", "sound");
-            audio.play_sound("entry_start_" + std::to_string((int)global_data.player_num) + "p", "voice");
+            audio.play_sound("cloud", VolumePreset::SOUND);
+            audio.play_sound("entry_start_" + std::to_string((int)global_data.player_num) + "p", VolumePreset::VOICE);
             state = EntryState::SELECT_MODE;
-            audio.play_sound("don", "sound");
+            audio.play_sound("don", VolumePreset::SOUND);
         }
         if (is_l_kat_pressed()) {
-            audio.play_sound("kat", "sound");
+            audio.play_sound("kat", VolumePreset::SOUND);
             if (players[0] && players[0]->player_num == PlayerNum::P1)
                 side = 1;
             else if (players[0] && players[0]->player_num == PlayerNum::P2)
@@ -62,7 +62,7 @@ std::optional<Screens> EntryScreen::handle_input() {
                 side = std::max(0, side - 1);
         }
         if (is_r_kat_pressed()) {
-            audio.play_sound("kat", "sound");
+            audio.play_sound("kat", VolumePreset::SOUND);
             if (players[0] && players[0]->player_num == PlayerNum::P1)
                 side = 2;
             else if (players[0] && players[0]->player_num == PlayerNum::P2)
@@ -75,7 +75,7 @@ std::optional<Screens> EntryScreen::handle_input() {
             if (player) player->handle_input();
         }
         if (players[0] && players[0]->player_num == PlayerNum::P1 && (is_l_don_pressed(PlayerNum::P2) || is_r_don_pressed(PlayerNum::P2))) {
-            audio.play_sound("don", "sound");
+            audio.play_sound("don", VolumePreset::SOUND);
             state = EntryState::SELECT_SIDE;
             NameplateConfig plate_info = global_data.config->nameplate_2p;
             nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 1);
@@ -83,7 +83,7 @@ std::optional<Screens> EntryScreen::handle_input() {
             lua_entry->restart_side_select();
             side = 1;
         } else if (players[0] && players[0]->player_num == PlayerNum::P2 && (is_l_don_pressed(PlayerNum::P1) || is_r_don_pressed(PlayerNum::P1))) {
-            audio.play_sound("don", "sound");
+            audio.play_sound("don", VolumePreset::SOUND);
             state = EntryState::SELECT_SIDE;
             lua_entry->restart_side_select();
             side = 1;
@@ -110,7 +110,7 @@ std::optional<Screens> EntryScreen::update() {
         if (player && player->is_cloud_animation_finished() &&
             !audio.is_sound_playing("entry_start_" + std::to_string((int)global_data.player_num) + "p") &&
             !announce_played) {
-            audio.play_sound("select_mode", "voice");
+            audio.play_sound("select_mode", VolumePreset::VOICE);
             announce_played = true;
         }
     }

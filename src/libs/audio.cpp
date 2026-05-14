@@ -538,19 +538,19 @@ void AudioEngine::unload_all_sounds() {
     spdlog::info("All sounds unloaded");
 }
 
-void AudioEngine::play_sound(const std::string& name, const std::string& volume_preset) {
+void AudioEngine::play_sound(const std::string& name, VolumePreset volume_preset) {
     std::shared_lock<std::shared_mutex> guard(rw_lock);
     auto it = sounds.find(name);
     if (it != sounds.end()) {
         sound& snd = it->second;
 
-        if (!volume_preset.empty()) {
+        if (volume_preset != VolumePreset::NONE) {
             float volume = 1.0f;
-            if (volume_preset == "sound") volume = volume_presets.sound;
-            else if (volume_preset == "music") volume = volume_presets.music;
-            else if (volume_preset == "voice") volume = volume_presets.voice;
-            else if (volume_preset == "hitsound") volume = volume_presets.hitsound;
-            else if (volume_preset == "attract_mode") volume = volume_presets.attract_mode;
+            if      (volume_preset == VolumePreset::SOUND)       volume = volume_presets.sound;
+            else if (volume_preset == VolumePreset::MUSIC)       volume = volume_presets.music;
+            else if (volume_preset == VolumePreset::VOICE)       volume = volume_presets.voice;
+            else if (volume_preset == VolumePreset::HITSOUND)    volume = volume_presets.hitsound;
+            else if (volume_preset == VolumePreset::ATTRACT_MODE) volume = volume_presets.attract_mode;
             std::atomic_ref<float>(snd.volume).store(volume, std::memory_order_relaxed);
         }
 
@@ -787,19 +787,19 @@ std::string AudioEngine::load_music_stream_memory(
     }
 }
 
-void AudioEngine::play_music_stream(const std::string& name, const std::string& volume_preset) {
+void AudioEngine::play_music_stream(const std::string& name, VolumePreset volume_preset) {
     std::shared_lock<std::shared_mutex> guard(rw_lock);
     auto it = music_streams.find(name);
     if (it != music_streams.end()) {
         music& mus = it->second;
 
-        if (!volume_preset.empty()) {
+        if (volume_preset != VolumePreset::NONE) {
             float volume = 1.0f;
-            if (volume_preset == "sound") volume = volume_presets.sound;
-            else if (volume_preset == "music") volume = volume_presets.music;
-            else if (volume_preset == "voice") volume = volume_presets.voice;
-            else if (volume_preset == "hitsound") volume = volume_presets.hitsound;
-            else if (volume_preset == "attract_mode") volume = volume_presets.attract_mode;
+            if      (volume_preset == VolumePreset::SOUND)       volume = volume_presets.sound;
+            else if (volume_preset == VolumePreset::MUSIC)       volume = volume_presets.music;
+            else if (volume_preset == VolumePreset::VOICE)       volume = volume_presets.voice;
+            else if (volume_preset == VolumePreset::HITSOUND)    volume = volume_presets.hitsound;
+            else if (volume_preset == VolumePreset::ATTRACT_MODE) volume = volume_presets.attract_mode;
             std::atomic_ref<float>(mus.volume).store(volume, std::memory_order_relaxed);
         }
 

@@ -22,7 +22,7 @@ void ResultCrown::update(double current_ms) {
     white_fadein->update(current_ms);
     gleam->update(current_ms);
     if (resize_fix->is_finished && !sound_played) {
-        audio.play_sound("crown", "sound");
+        audio.play_sound("crown", VolumePreset::SOUND);
         sound_played = true;
     }
 }

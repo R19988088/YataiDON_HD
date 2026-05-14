@@ -18,7 +18,7 @@ void WarningX::update(double current_ms) {
     fade_in_2->update(current_ms);
 
     if (resize->attribute > 1 && !sound_played) {
-        audio.play_sound("error", "attract_mode");
+        audio.play_sound("error", VolumePreset::ATTRACT_MODE);
         sound_played = true;
     }
 }
@@ -44,7 +44,7 @@ WarningBachiHit::WarningBachiHit() {
 
 void WarningBachiHit::update(double current_ms) {
     if (!sound_played) {
-        audio.play_sound("bachi_hit", "attract_mode");
+        audio.play_sound("bachi_hit", VolumePreset::ATTRACT_MODE);
         sound_played = true;
         fade_in->start();
         resize->start();
@@ -153,8 +153,8 @@ void WarningScreen::update(double current_ms) {
     } else {
         fade_out->start();
         if (delay <= elapsed_time && !audio.is_sound_playing("bachi_swipe")) {
-            audio.play_sound("warning_voiceover", "attract_mode");
-            audio.play_sound("bachi_swipe", "attract_mode");
+            audio.play_sound("warning_voiceover", VolumePreset::ATTRACT_MODE);
+            audio.play_sound("bachi_swipe", VolumePreset::ATTRACT_MODE);
         }
     }
 }

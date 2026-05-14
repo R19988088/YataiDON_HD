@@ -22,7 +22,7 @@ void SettingsScreen::on_screen_start() {
     coin_overlay   = CoinOverlay();
     allnet_indicator = AllNetIcon();
 
-    audio.play_sound("bgm", "music");
+    audio.play_sound("bgm", VolumePreset::MUSIC);
     screen_init = true;
 }
 
@@ -47,13 +47,13 @@ std::optional<Screens> SettingsScreen::handle_input() {
         return on_screen_end(Screens::SKIN_VIEWER);
     }
     if (is_l_kat_pressed()) {
-        audio.play_sound("kat", "sound");
+        audio.play_sound("kat", VolumePreset::SOUND);
         box_manager->move_left();
     } else if (is_r_kat_pressed()) {
-        audio.play_sound("kat", "sound");
+        audio.play_sound("kat", VolumePreset::SOUND);
         box_manager->move_right();
     } else if (is_l_don_pressed() || is_r_don_pressed()) {
-        audio.play_sound("don", "sound");
+        audio.play_sound("don", VolumePreset::SOUND);
         bool result = box_manager->select_box();
         if (result) {
             return on_screen_end(Screens::ENTRY);

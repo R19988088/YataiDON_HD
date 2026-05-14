@@ -37,7 +37,7 @@ FCAnimation::FCAnimation(bool is_2p)
     fan_fade_in = (FadeAnimation*)tex.get_animation(61);
     fan_texture_change = (TextureChangeAnimation*)tex.get_animation(62);
 
-    audio.play_sound("full_combo", "sound");
+    audio.play_sound("full_combo", VolumePreset::SOUND);
 }
 
 void FCAnimation::update(double current_ms) {
@@ -59,7 +59,7 @@ void FCAnimation::update(double current_ms) {
         bachio_move_up->start();
         fan_fade_in->start();
         fan_texture_change->start();
-        audio.play_sound("full_combo_voice", "voice");
+        audio.play_sound("full_combo_voice", VolumePreset::VOICE);
     }
 
     if (clear_highlight_fade_in->attribute == 1.0f) {

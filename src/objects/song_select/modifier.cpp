@@ -51,7 +51,7 @@ ModifierSelector::ModifierSelector(PlayerNum player_num) : player_num(player_num
     move_sideways   = (MoveAnimation*)tex.get_animation(31, true);
     fade_sideways   = (FadeAnimation*)tex.get_animation(32, true);
 
-    audio.play_sound("voice_options_" + std::to_string((int)player_num) + "p", "sound");
+    audio.play_sound("voice_options_" + std::to_string((int)player_num) + "p", VolumePreset::SOUND);
 
     static const std::array<SC, 5> MOD_NAME_KEYS = {
         SC::MODIFIER_NAME_AUTO, SC::MODIFIER_NAME_SPEED, SC::MODIFIER_NAME_DISPLAY,

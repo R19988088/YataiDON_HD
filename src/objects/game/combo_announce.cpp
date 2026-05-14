@@ -20,7 +20,7 @@ void ComboAnnounce::update(double current_ms) {
 
     if (!audio_played && combo >= 100) {
         std::string sound_name = "combo_" + std::to_string(combo) + "_" + std::to_string(static_cast<int>(player_num)) + "p";
-        audio.play_sound(sound_name, "voice");
+        audio.play_sound(sound_name, VolumePreset::VOICE);
         audio_played = true;
     }
 }

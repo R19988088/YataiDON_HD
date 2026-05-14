@@ -187,13 +187,13 @@ void DanGameScreen::check_exam_failures() {
 
         if (exam.range == "more" && val < exam.red) {
             exam_failed[i] = true;
-            audio.play_sound("exam_failed", "sound");
+            audio.play_sound("exam_failed", VolumePreset::SOUND);
             spdlog::info("Dan exam {} ({}) failed: {} < {}", i, exam.type, val, exam.red);
         } else if (exam.range == "less") {
             int remaining = std::max(0, exam.red - val);
             if (remaining == 0) {
                 exam_failed[i] = true;
-                audio.play_sound("dan_failed", "sound");
+                audio.play_sound("dan_failed", VolumePreset::SOUND);
                 spdlog::info("Dan exam {} ({}) failed: limit reached", i, exam.type);
             }
         }
@@ -273,7 +273,7 @@ std::optional<Screens> DanGameScreen::update() {
             }
             if (ms_from_start >= players[0]->end_time + 8533.34 && !result_transition.is_started) {
                 result_transition.start();
-                audio.play_sound("dan_transition", "voice");
+                audio.play_sound("dan_transition", VolumePreset::VOICE);
             }
         } else {
             // Advance to next song
@@ -299,7 +299,7 @@ std::optional<Screens> DanGameScreen::update() {
         prev_good = prev_ok = prev_bad = prev_drumroll = 0;
         sd.dan_result_data = DanResultData();
         init_dan();
-        audio.play_sound("restart", "sound");
+        audio.play_sound("restart", VolumePreset::SOUND);
     }
 
     return std::nullopt;

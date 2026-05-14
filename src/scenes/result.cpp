@@ -4,7 +4,7 @@
 void ResultScreen::on_screen_start() {
     Screen::on_screen_start();
     song_info = std::make_unique<OutlinedText>(global_data.session_data[(int)global_data.player_num].song_title, tex.skin_config[SC::SONG_INFO_RESULT].font_size, ray::WHITE, ray::BLACK, false, 5);
-    audio.play_sound("bgm", "music");
+    audio.play_sound("bgm", VolumePreset::MUSIC);
     fade_out = (FadeAnimation*)tex.get_animation(0);
     fade_in.emplace(global_data.player_num);
     start_ms = get_current_ms();
@@ -31,10 +31,10 @@ void ResultScreen::handle_input() {
     if (fade_in.has_value() && fade_in->is_finished() && is_r_don_pressed() || is_l_don_pressed()) {
         if (skipped_time == 0) {
             skipped_time = get_current_ms();
-            audio.play_sound("don", "sound");
+            audio.play_sound("don", VolumePreset::SOUND);
         } else if (get_current_ms() > skipped_time + 5000 && !fade_out->is_started) {
             fade_out->start();
-            audio.play_sound("don", "sound");
+            audio.play_sound("don", VolumePreset::SOUND);
         }
     }
 }

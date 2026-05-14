@@ -139,7 +139,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::DON;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio.play_sound(don_hitsound, "hitsound");
+            audio.play_sound(don_hitsound, VolumePreset::HITSOUND);
             check_note(ms_from_start, hit_type, current_ms, background);
         }
     } else {
@@ -147,7 +147,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::DON;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio.play_sound(don_hitsound, "hitsound");
+            audio.play_sound(don_hitsound, VolumePreset::HITSOUND);
             check_note(ms_from_start, hit_type, current_ms, background);
             last_note_hit = current_ms;
         }
@@ -156,7 +156,7 @@ void Player::autoplay_manager(double ms_from_start, double current_ms, std::opti
             hit_type = DrumType::KAT;
             autoplay_hit_side = autoplay_hit_side == Side::LEFT ? Side::RIGHT : Side::LEFT;
             spawn_hit_effects(hit_type, autoplay_hit_side);
-            audio.play_sound(kat_hitsound, "hitsound");
+            audio.play_sound(kat_hitsound, VolumePreset::HITSOUND);
             check_note(ms_from_start, hit_type, current_ms, background);
         }
     }
@@ -971,7 +971,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, const Note& ba
     if (curr_balloon_count == balloon.count.value()) {
         is_balloon = false;
         balloon_counter->update(current_ms, curr_balloon_count);
-        audio.play_sound("balloon_pop", "hitsound");
+        audio.play_sound("balloon_pop", VolumePreset::HITSOUND);
         note_correct(balloon, current_ms);
         curr_balloon_count = 0;
     }
@@ -989,7 +989,7 @@ void Player::check_kusudama(double current_ms, DrumType drum_type, const Note& b
     base_score_list.push_back(ScoreCounterAnimation(player_num, 100));
     if (curr_balloon_count == balloon.count.value()) {
         is_balloon = false;
-        audio.play_sound("kusudama_pop", "hitsound");
+        audio.play_sound("kusudama_pop", VolumePreset::HITSOUND);
         kusudama_counter->update(current_ms, curr_balloon_count);
         note_correct(balloon, current_ms);
         curr_balloon_count = 0;
@@ -1177,7 +1177,7 @@ void Player::handle_input(double ms_from_start, double current_ms, std::optional
         while (input.check_func(player_num)) {
             spawn_hit_effects(input.drum_type, input.side);
             if (global_data.hit_sound[(int)player_num] != -1)
-                audio.play_sound(input.sound, "hitsound");
+                audio.play_sound(input.sound, VolumePreset::HITSOUND);
             check_note(ms_from_start, input.drum_type, current_ms, background);
         }
     }

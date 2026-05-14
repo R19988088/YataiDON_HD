@@ -62,9 +62,9 @@ void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
                 else if (field_name == "max_combo") max_combo = next_score_str;
                 else if (field_name == "total_drumroll") total_drumroll = next_score_str;
 
-                if (new_num != curr_num) audio.play_sound("num_up", "sound");
+                if (new_num != curr_num) audio.play_sound("num_up", VolumePreset::SOUND);
                 if (score_animator->is_finished) {
-                    audio.play_sound("don", "sound");
+                    audio.play_sound("don", VolumePreset::SOUND);
                     score_delay.value() += 750;
                     if (update_index == update_list.size() - 1) {
                         return;

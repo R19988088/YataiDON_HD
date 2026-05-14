@@ -103,7 +103,7 @@ void PracticeGameScreen::pause_song_practice() {
         pause_time = (int)start_time;
 
         if (song_music.has_value()) {
-            audio.play_sound(song_music.value(), "music");
+            audio.play_sound(song_music.value(), VolumePreset::MUSIC);
             double seek_sec = (start_time - start_delay) / 1000.0 - parser->metadata.offset;
             audio.seek_sound(song_music.value(), std::max(0.0, seek_sec));
         }
@@ -120,7 +120,7 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
         players.clear();
         init_tja(global_data.session_data[(int)global_data.player_num].selected_song);
         init_tja_practice(global_data.session_data[(int)global_data.player_num].selected_song);
-        audio.play_sound("restart", "sound");
+        audio.play_sound("restart", VolumePreset::SOUND);
         song_started = false;
         paused = false;
         return std::nullopt;
@@ -138,7 +138,7 @@ std::optional<Screens> PracticeGameScreen::global_keys_practice() {
     }
 
     if (!bars.empty() && (ray::IsKeyPressed(ray::KEY_LEFT) || ray::IsKeyPressed(ray::KEY_RIGHT))) {
-        audio.play_sound("kat", "sound");
+        audio.play_sound("kat", VolumePreset::SOUND);
 
         // Snap any in-progress animation
         if (scrobble_move->is_started && !scrobble_move->is_finished) {

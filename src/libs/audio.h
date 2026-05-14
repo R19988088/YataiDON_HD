@@ -11,6 +11,15 @@
 
 namespace fs = std::filesystem;
 
+enum class VolumePreset {
+    NONE,
+    SOUND,
+    MUSIC,
+    VOICE,
+    HITSOUND,
+    ATTRACT_MODE,
+};
+
 struct VirtualFile {
     const std::vector<uint8_t>* data = nullptr;
     sf_count_t                  pos  = 0;
@@ -77,7 +86,7 @@ public:
     std::string load_sound(const fs::path& file_path, const std::string& name);
     void unload_sound(const std::string& name);
     void unload_all_sounds();
-    void play_sound(const std::string& name, const std::string& volume_preset = "");
+    void play_sound(const std::string& name, VolumePreset volume_preset = VolumePreset::NONE);
     void stop_sound(const std::string& name);
     bool is_sound_playing(const std::string& name);
     void  set_sound_volume(const std::string& name, float volume);
@@ -87,7 +96,7 @@ public:
 
     std::string load_music_stream(const fs::path& file_path, const std::string& name);
     std::string load_music_stream_memory(const av::AVAudioStream& audio_stream, const std::string& name);
-    void  play_music_stream(const std::string& name, const std::string& volume_preset = "");
+    void  play_music_stream(const std::string& name, VolumePreset volume_preset = VolumePreset::NONE);
     float get_music_time_length(const std::string& name) const;
     float get_music_time_played(const std::string& name) const;
     void  set_music_volume(const std::string& name, float volume);

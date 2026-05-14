@@ -126,7 +126,7 @@ void GameScreen::init_tja(fs::path song) {
 void GameScreen::start_song(double ms_from_start) {
     if (ms_from_start >= parser->metadata.offset*1000 + start_delay - (double)global_data.config->general.audio_offset && !song_started) {
         if (song_music.has_value()) {
-            audio.play_sound(song_music.value(), "music");
+            audio.play_sound(song_music.value(), VolumePreset::MUSIC);
             spdlog::info("Song started at {}", ms_from_start);
         }
         if (movie.has_value()) {
@@ -148,7 +148,7 @@ void GameScreen::pause_song() {
         pause_time = get_current_ms() - start_ms;
     } else {
         if (song_music.has_value()) {
-            audio.play_sound(song_music.value(), "music");
+            audio.play_sound(song_music.value(), VolumePreset::MUSIC);
             audio.seek_sound(song_music.value(), audio_time);
         }
         start_ms = get_current_ms() - pause_time;
@@ -161,7 +161,7 @@ void GameScreen::restart_song() {
     }
     players.clear();
     init_tja(global_data.session_data[(int)global_data.player_num].selected_song);
-    audio.play_sound("restart", "sound");
+    audio.play_sound("restart", VolumePreset::SOUND);
     song_started = false;
 }
 
@@ -260,7 +260,7 @@ void GameScreen::end_song() {
     if (ms_from_start >= players[0]->end_time + 8533.34) {
         if (!result_transition.is_started) {
             result_transition.start();
-            audio.play_sound("result_transition", "voice");
+            audio.play_sound("result_transition", VolumePreset::VOICE);
             spdlog::info("Result transition started and voice played");
         }
     }

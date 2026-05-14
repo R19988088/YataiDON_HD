@@ -14,7 +14,7 @@ void GameOverScreen::on_screen_start() {
     text_bounce_up = (MoveAnimation*)tex.get_animation(5);
     text_bounce_down_2 = (MoveAnimation*)tex.get_animation(6);
     fade_out = (FadeAnimation*)tex.get_animation(7);
-    audio.play_sound("bana_ad", "music");
+    audio.play_sound("bana_ad", VolumePreset::MUSIC);
 }
 
 Screens GameOverScreen::on_screen_end(Screens next_screen) {
@@ -26,17 +26,17 @@ std::optional<Screens> GameOverScreen::update() {
     double current_ms = get_current_ms();
     if (!audio.is_sound_playing("bana_ad") && !ad_played) {
         ad_played = true;
-        audio.play_sound("curtain", "sound");
+        audio.play_sound("curtain", VolumePreset::SOUND);
         curtain_pull_out->start();
         curtain_pull_in->start();
         text_bounce_down->start();
         text_bounce_up->start();
         text_bounce_down_2->start();
-        audio.play_sound("jingle", "music");
+        audio.play_sound("jingle", VolumePreset::MUSIC);
     }
     if (text_bounce_down->attribute > 0 && !voice_played) {
         voice_played = true;
-        audio.play_sound("voice", "voice");
+        audio.play_sound("voice", VolumePreset::VOICE);
     }
     if (!audio.is_sound_playing("jingle") && voice_played && !fade_out->is_started) {
         fade_out->start();

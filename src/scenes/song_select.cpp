@@ -5,8 +5,8 @@ void SongSelectScreen::on_screen_start() {
     Screen::on_screen_start();
     audio.set_sound_volume("ura_switch", 0.25f);
     audio.set_sound_volume("add_favorite", 3.0f);
-    audio.play_sound("bgm", "music");
-    audio.play_sound("voice_enter", "voice");
+    audio.play_sound("bgm", VolumePreset::MUSIC);
+    audio.play_sound("voice_enter", VolumePreset::VOICE);
 
     diff_fade_out = (FadeAnimation*)tex.get_animation(2);
     script = std::make_unique<SongSelectScript>();

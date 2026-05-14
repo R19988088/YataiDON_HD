@@ -187,8 +187,8 @@ void DanNavigator::draw() {
 
 void DanSelectScreen::on_screen_start() {
     Screen::on_screen_start();
-    audio.play_sound("bgm", "music");
-    audio.play_sound("dan_select", "voice");
+    audio.play_sound("bgm", VolumePreset::MUSIC);
+    audio.play_sound("dan_select", VolumePreset::VOICE);
 
     indicator    = std::make_unique<Indicator>(Indicator::State::SELECT);
     confirm_fade = (FadeAnimation*)tex.get_animation(8);
@@ -223,25 +223,25 @@ void DanSelectScreen::handle_input_browsing(double current_ms) {
     bool confirm    = is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num);
 
     if (skip_left || (nav_left && current_ms <= last_moved + 50)) {
-        audio.play_sound("skip", "sound");
+        audio.play_sound("skip", VolumePreset::SOUND);
         dan_navigator.skip(-10);
         last_moved = current_ms;
     } else if (skip_right || (nav_right && current_ms <= last_moved + 50)) {
-        audio.play_sound("skip", "sound");
+        audio.play_sound("skip", VolumePreset::SOUND);
         dan_navigator.skip(10);
         last_moved = current_ms;
     } else if (nav_left) {
-        audio.play_sound("kat", "sound");
+        audio.play_sound("kat", VolumePreset::SOUND);
         dan_navigator.move_left();
         last_moved = current_ms;
     } else if (nav_right) {
-        audio.play_sound("kat", "sound");
+        audio.play_sound("kat", VolumePreset::SOUND);
         dan_navigator.move_right();
         last_moved = current_ms;
     } else if (confirm) {
-        audio.play_sound("don", "sound");
-        audio.play_sound("confirm_box", "sound");
-        audio.play_sound("dan_confirm", "voice");
+        audio.play_sound("don", VolumePreset::SOUND);
+        audio.play_sound("confirm_box", VolumePreset::SOUND);
+        audio.play_sound("dan_confirm", VolumePreset::VOICE);
         confirm_fade->start();
         state = SongSelectState::SONG_SELECTED;
         is_confirmed = false;
@@ -249,8 +249,8 @@ void DanSelectScreen::handle_input_browsing(double current_ms) {
 }
 
 void DanSelectScreen::handle_input_selected() {
-    if (is_l_kat_pressed(global_data.player_num)) { audio.play_sound("kat", "sound"); is_confirmed = false; }
-    if (is_r_kat_pressed(global_data.player_num)) { audio.play_sound("kat", "sound"); is_confirmed = true;  }
+    if (is_l_kat_pressed(global_data.player_num)) { audio.play_sound("kat", VolumePreset::SOUND); is_confirmed = false; }
+    if (is_r_kat_pressed(global_data.player_num)) { audio.play_sound("kat", VolumePreset::SOUND); is_confirmed = true;  }
 
     // Only consume the don press when canceling; leave it in the buffer for update() to handle confirm
     if (!is_confirmed && (is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num)))
@@ -272,7 +272,7 @@ std::optional<Screens> DanSelectScreen::update() {
     } else if (state == SongSelectState::SONG_SELECTED) {
         handle_input_selected();
         if (is_confirmed && (is_l_don_pressed(global_data.player_num) || is_r_don_pressed(global_data.player_num))) {
-            audio.play_sound("don", "sound");
+            audio.play_sound("don", VolumePreset::SOUND);
             return on_screen_end(Screens::GAME_DAN);
         }
     }

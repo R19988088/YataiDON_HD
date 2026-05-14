@@ -104,7 +104,7 @@ std::optional<Screens> TitleScreen::update() {
     scene_manager(current_ms);
     if (is_l_don_pressed() || is_r_don_pressed()) {
         fade_out->start();
-        audio.play_sound("don", "sound");
+        audio.play_sound("don", VolumePreset::SOUND);
     }
     return std::nullopt;
 }
