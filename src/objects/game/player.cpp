@@ -1002,7 +1002,7 @@ void Player::check_note(double ms_from_start, DrumType drum_type, double current
     float good_window_ms;
     float ok_window_ms;
     float bad_window_ms;
-    if (difficulty < (int)Difficulty::NORMAL) {
+    if (difficulty <= (int)Difficulty::NORMAL) {
         good_window_ms = Timing::GOOD_EASY;
         ok_window_ms = Timing::OK_EASY;
         bad_window_ms = Timing::BAD_EASY;
