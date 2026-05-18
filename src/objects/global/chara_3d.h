@@ -15,7 +15,7 @@ private:
     float bpm = 100;
     double last_frame_ms = 0;
 
-    float scale = 750.0f;
+    float scale = 650.0f;
     float rot_x = 180.0f;
     float rot_y = 20.0f;
     float rot_z = 0.0f;

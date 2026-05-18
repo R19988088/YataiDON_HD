@@ -17,7 +17,7 @@ void main() {
     if (len > 0.0001)
         n = n / len;
 
-    clipPos.xy += n * (outlineThickness / screenSize) * vertexColor.a * 20.0;
+    clipPos.xy += n * (outlineThickness / screenSize) * vertexColor.a * 15.0;
     clipPos.z += 0.001;
 
     gl_Position = clipPos;

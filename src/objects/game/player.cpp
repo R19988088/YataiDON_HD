@@ -1412,7 +1412,7 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     if (is_balloon) {
         chara->draw(330, y + 180);
     } else {
-        chara->draw(160, y + 20);
+        chara->draw(160, y + 15);
     }
 
     if (drumroll_counter.has_value()) {
