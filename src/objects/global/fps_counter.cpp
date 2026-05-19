@@ -10,7 +10,7 @@ FPSCounter::FPSCounter() {
 }
 
 void FPSCounter::update() {
-    long currentTime = get_current_ms();
+    double currentTime = get_current_ms();
     float deltaTime = currentTime - lastTime;
     lastTime = currentTime;
 
