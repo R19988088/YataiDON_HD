@@ -215,6 +215,7 @@ Config get_config() {
         config.general.display_bpm = (*general)["display_bpm"].value_or(false);
         config.general.song_limit = (*general)["song_limit"].value_or(0);
         config.general.costume_name = (*general)["costume_name"].value_or("cos_000000");
+        config.general.webcam_number = (*general)["webcam_number"].value_or(-1);
     }
 
     // Parse nameplate_1p
@@ -352,7 +353,8 @@ void save_config(const Config& config) {
         {"practice_mode_bar_delay", config.general.practice_mode_bar_delay},
         {"score_method", config.general.score_method},
         {"song_limit", config.general.song_limit},
-        {"costume_name", config.general.costume_name}
+        {"costume_name", config.general.costume_name},
+        {"webcam_number", config.general.webcam_number}
     });
 
     // Nameplate 1P

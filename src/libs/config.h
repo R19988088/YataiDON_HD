@@ -22,6 +22,7 @@ struct GeneralConfig {
     bool display_bpm;
     int song_limit;
     std::string costume_name;
+    int webcam_number;
 };
 
 struct NameplateConfig {

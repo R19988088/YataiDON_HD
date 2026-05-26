@@ -1,11 +1,12 @@
 #include "attract_camera.h"
 #include "../../libs/texture.h"
 #include "../../libs/audio.h"
+#include "../../libs/global_data.h"
 
 AttractCamera::AttractCamera() {
     start_ms = get_current_ms();
     camera = WebCamera();
-    camera.open();
+    camera.open(global_data.config->general.webcam_number);
     audio.play_sound("camera", VolumePreset::ATTRACT_MODE);
 
     live_icon_texture_change = (TextureChangeAnimation*)tex.get_animation(36);
