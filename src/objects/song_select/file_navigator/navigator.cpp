@@ -918,7 +918,7 @@ void Navigator::navigate(int delta, bool snap) {
     if (items.empty()) return;
     items[open_index]->close_box();
     last_bg_genre_index = bg_genre_index;
-    open_index = (open_index + delta + (int)items.size()) % (int)items.size();
+    open_index = ((open_index + delta) % (int)items.size() + (int)items.size()) % (int)items.size();
     bg_genre_index = items[open_index]->genre_index;
     set_positions(snap, 166);
     items[open_index]->expand_box();
