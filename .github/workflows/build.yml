@@ -77,6 +77,7 @@ jobs:
           cp build/bin/YataiDON release/YataiDON-Linux/
           cp -r Skins release/YataiDON-Linux/
           cp -r shader release/YataiDON-Linux/
+          cp -r Songs release/YataiDON-Linux/
           cp config.toml release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON
 
@@ -164,6 +165,7 @@ jobs:
           cp build/bin/*.dll release/YataiDON-Windows/ 2>/dev/null || true
           cp -r Skins release/YataiDON-Windows/
           cp -r shader release/YataiDON-Windows/
+          cp -r Songs release/YataiDON-Windows/
           cp config.toml release/YataiDON-Windows/
 
       - name: Upload Windows package

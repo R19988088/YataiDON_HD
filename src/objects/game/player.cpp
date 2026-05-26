@@ -53,7 +53,7 @@ Player::Player(std::optional<SongParser>& parser_ref, PlayerNum player_num_param
     }
     nameplate = Nameplate(plate_info.name, plate_info.title, global_data.player_num, plate_info.dan, plate_info.gold, plate_info.rainbow, plate_info.title_bg);
     chara = std::make_unique<Chara3D>(global_data.config->general.costume_name);
-    chara->set_anim(20);
+    chara->set_anim(AnimIndex::DON_NORMAL);
     if (global_data.config->general.judge_counter) {
         judge_counter = JudgeCounter();
     }
@@ -397,11 +397,19 @@ void Player::draw(double ms_from_start, float x, float y, ray::Shader& mask_shad
     if (fireworks.has_value()) {
         fireworks->draw();
     }
+    draw_lane_cover(y);
+
     for (Judgment& anim : draw_judge_list) {
         anim.draw(judge_x, y + judge_y);
     }
 
-    draw_notes(ms_from_start, y);
+    {
+        int scissor_x = virtual_to_screen_x(static_cast<float>(tex.textures[lane_cover_tex_id]->x2[0]));
+        int win_w = ray::GetScreenWidth();
+        ray::BeginScissorMode(scissor_x, 0, win_w - scissor_x, ray::GetScreenHeight());
+        draw_notes(ms_from_start, y);
+        ray::EndScissorMode();
+    }
 
     draw_overlays(y, mask_shader);
 
@@ -427,11 +435,19 @@ void Player::draw_practice(double ms_from_start, float x, float y, ray::Shader& 
     if (fireworks.has_value()) {
         fireworks->draw();
     }
+    draw_lane_cover(y);
+
     for (Judgment& anim : draw_judge_list) {
         anim.draw(judge_x, y + judge_y);
     }
 
-    if (draw_notes_on) draw_notes(ms_from_start, y);
+    if (draw_notes_on) {
+        int scissor_x = virtual_to_screen_x(static_cast<float>(tex.textures[lane_cover_tex_id]->x2[0]));
+        int win_w = ray::GetScreenWidth();
+        ray::BeginScissorMode(scissor_x, 0, win_w - scissor_x, ray::GetScreenHeight());
+        draw_notes(ms_from_start, y);
+        ray::EndScissorMode();
+    }
 
     draw_overlays(y, mask_shader);
 }
@@ -656,11 +672,11 @@ void Player::handle_gogotime(double ms_from_start, const TimelineObject& timelin
     if (is_gogo_time) {
         gogo_time = GogoTime();
         fireworks = Fireworks();
-        chara->set_anim(21);
-        chara->set_anim(22);
+        chara->set_anim(AnimIndex::DON_SABI);
+        chara->set_anim(AnimIndex::DON_SABI_START);
     } else {
         gogo_time.reset();
-        chara->set_anim(20);
+        chara->set_anim(AnimIndex::DON_NORMAL);
     }
 
     timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
@@ -905,7 +921,7 @@ void Player::note_correct(const Note& note, double current_ms) {
     if (note.type < NoteType::BALLOON_HEAD) {
         combo++;
         if (combo % 10 == 0) {
-            chara->set_anim(5);
+            chara->set_anim(AnimIndex::DON_COMBO);
         }
         if (combo % 100 == 0) {
             combo_announce = ComboAnnounce(combo, current_ms, player_num);
@@ -960,6 +976,7 @@ void Player::check_balloon(double current_ms, DrumType drum_type, const Note& ba
     if (drum_type != DrumType::DON) return;
     if (!balloon_counter.has_value()) {
         balloon_counter = BalloonCounter(balloon.count.value(), is_2p);
+        chara->set_anim(AnimIndex::DON_BALLOON_LOOP);
     }
     if (background.has_value()) background->handle_balloon(PlayerNum(is_2p + 1));
     curr_balloon_count++;
@@ -1119,11 +1136,10 @@ void Player::drumroll_counter_manager(double current_ms) {
 void Player::balloon_counter_manager(double current_ms) {
     if (!is_balloon && balloon_counter.has_value()) {
         balloon_counter.reset();
-        chara->set_anim(20);
-        chara->set_anim(0);
+        chara->set_anim(AnimIndex::DON_NORMAL);
+        chara->set_anim(AnimIndex::DON_BALLOON_FAILURE);
     }
     if (balloon_counter.has_value()) {
-        chara->set_anim(1);
         balloon_counter->update(current_ms, curr_balloon_count);
         if (balloon_counter->is_finished()) {
             if (score_method == ScoreMethod::GEN3) {
@@ -1131,8 +1147,8 @@ void Player::balloon_counter_manager(double current_ms) {
                 base_score_list.push_back(ScoreCounterAnimation(player_num, 5000));
             }
             balloon_counter.reset();
-            chara->set_anim(20);
-            chara->set_anim(3);
+            chara->set_anim(AnimIndex::DON_NORMAL);
+            chara->set_anim(AnimIndex::DON_BALLOON_SUCCESS);
         }
     }
 }
@@ -1367,9 +1383,13 @@ void Player::draw_modifiers(float y) {
     }
 }
 
-void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
+void Player::draw_lane_cover(float y) {
     tex.draw_texture(lane_cover_tex_id, {.y=y});
     if (is_dan) tex.draw_texture(LANE::DAN_LANE_COVER, {.y=y});
+}
+
+
+void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
     tex.draw_texture(LANE::DRUM, {.y=y});
     if (ending_anim.has_value()) {
         std::visit([](auto& anim) { anim.draw(); }, ending_anim.value());
@@ -1410,9 +1430,17 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
         }
     }
     if (is_balloon) {
-        chara->draw(330, y + 180);
+        if (is_2p) {
+            chara->draw(420, y + 120);
+        } else {
+            chara->draw(420, y + 120);
+        }
     } else {
-        chara->draw(160, y + 15);
+        if (is_2p) {
+            chara->draw(160, y + 372);
+        } else {
+            chara->draw(160, y + 13);
+        }
     }
 
     if (drumroll_counter.has_value()) {

@@ -1,9 +1,8 @@
 #include "filesystem.h"
 #include "miniz/miniz.h"
-#include "scores.h"
-#include "song_parser.h"
 #include <fstream>
 #include <spdlog/spdlog.h>
+#include <unistd.h>
 
 #ifdef _WIN32
     #include <windows.h>

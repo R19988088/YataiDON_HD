@@ -1,4 +1,3 @@
-#include <cmath>
 #include <iostream>
 #include <rlgl.h>
 
@@ -243,7 +242,10 @@ static void run_frame() {
     ray::EndBlendMode();
     ray::EndMode3D();
     ray::EndDrawing();
-    ray::SwapScreenBuffer();
+
+    if (!next_screen.has_value()) {
+        ray::SwapScreenBuffer();
+    }
 
     auto elapsed   = std::chrono::steady_clock::now() - frame_start;
     auto remaining = L.target_duration - elapsed;
@@ -256,12 +258,12 @@ int main(int argc, char* argv[]) {
     spdlog::info("Starting YataiDON");
     set_working_directory_to_executable();
     global_data.config = new Config(get_config());
+    unsigned int flags = ray::FLAG_MSAA_4X_HINT | ray::FLAG_WINDOW_RESIZABLE;
     if (global_data.config->video.vsync) {
-        ray::SetConfigFlags(ray::FLAG_VSYNC_HINT);
+        flags |= ray::FLAG_VSYNC_HINT;
         spdlog::info("VSync enabled");
     }
-    ray::SetConfigFlags(ray::FLAG_MSAA_4X_HINT);
-    ray::SetConfigFlags(ray::FLAG_WINDOW_RESIZABLE);
+    ray::SetConfigFlags(flags);
     ray::SetTraceLogLevel(ray::LOG_ERROR);
     setup_logging(global_data.config->general.log_level);
 

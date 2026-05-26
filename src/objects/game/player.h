@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../../libs/screen.h"
 #include "../../libs/song_parser.h"
 #include "../global/nameplate.h"
 #include "../global/chara_3d.h"
@@ -76,6 +77,7 @@ public:
     void draw_practice(double ms_from_start, float x, float y, ray::Shader& mask_shader, bool draw_notes_on);
 
     void draw_overlays(float y, const ray::Shader& mask_shader);
+    void draw_lane_cover(float y);
 
 private:
     bool is_2p;

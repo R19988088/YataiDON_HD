@@ -2,7 +2,20 @@
 
 #include "texture.h"
 #include "audio.h"
+#include "global_data.h"
 #include <spdlog/spdlog.h>
+
+inline int virtual_to_screen_x(float virtual_x) {
+    int win_w = ray::GetScreenWidth();
+    int win_h = ray::GetScreenHeight();
+    float scale = std::min((float)win_w / tex.screen_width, (float)win_h / tex.screen_height);
+    float effective_zoom = scale * global_data.camera.zoom;
+    float zoom_off    = (tex.screen_width * scale * (global_data.camera.zoom    - 1.0f)) * 0.5f;
+    float h_scale_off = (tex.screen_width * scale * (global_data.camera.h_scale - 1.0f)) * 0.5f;
+    float offset_x = (win_w - tex.screen_width * scale) * 0.5f - zoom_off - h_scale_off
+                     + global_data.camera.offset.x * scale;
+    return static_cast<int>(virtual_x * effective_zoom + offset_x);
+}
 
 enum class Screens {
     TITLE,

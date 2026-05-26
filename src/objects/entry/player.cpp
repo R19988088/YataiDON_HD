@@ -20,7 +20,7 @@ EntryPlayer::EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager
     );
     indicator = std::make_unique<Indicator>(Indicator::State::SELECT);
 
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name);
+    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name, player_num == PlayerNum::P2);
 
     drum_move_1 = (MoveAnimation*)tex.get_animation(2);
     drum_move_2 = (MoveAnimation*)tex.get_animation(3);

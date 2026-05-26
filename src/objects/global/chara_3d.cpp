@@ -1,18 +1,17 @@
 #include "chara_3d.h"
+#include "../../libs/animation.h"
 #include "../../libs/global_data.h"
-#include "raylib.h"
-#include <cmath>
+#include <fstream>
+#include <rapidjson/document.h>
 
 extern "C" void rlEnableDepthTest(void);
 extern "C" void rlDisableDepthTest(void);
 extern "C" void rlDrawRenderBatchActive(void);
 extern "C" void glClear(unsigned int mask);
-extern "C" void rlDisableBackfaceCulling(void);
-extern "C" void rlEnableBackfaceCulling(void);
 extern "C" void glCullFace(unsigned int mode);
-static constexpr unsigned int GL_FRONT = 0x0404;
-static constexpr unsigned int GL_BACK  = 0x0405;
-static constexpr unsigned int GL_DEPTH_BUFFER_BIT = 0x00000100;
+static constexpr unsigned int GL_FRONT               = 0x0404;
+static constexpr unsigned int GL_BACK                = 0x0405;
+static constexpr unsigned int GL_DEPTH_BUFFER_BIT    = 0x00000100;
 
 
 static ray::Matrix rotation_xyz(float ax, float ay, float az) {
@@ -57,51 +56,185 @@ static void reindex_animations(ray::Model& model, ray::Model& glb_model,
     }
 }
 
-Chara3D::Chara3D(std::string& model_name) {
+static std::string name_lower(const char* s) {
+    std::string r(s);
+    for (char& c : r) c = (char)tolower((unsigned char)c);
+    return r;
+}
+
+static std::unordered_map<std::string, int> parse_glb_material_indices(
+        const std::string& path, std::vector<int>& recolor_out, int& face_out,
+        std::vector<int>& additive_out, std::vector<int>& force_opaque_out) {
+    std::unordered_map<std::string, int> result;
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return result;
+
+    uint32_t magic = 0, version = 0, total_len = 0;
+    fread(&magic,     4, 1, f);
+    fread(&version,   4, 1, f);
+    fread(&total_len, 4, 1, f);
+
+    if (magic != 0x46546C67u) { fclose(f); return result; }
+
+    uint32_t chunk_len = 0, chunk_type = 0;
+    fread(&chunk_len,  4, 1, f);
+    fread(&chunk_type, 4, 1, f);
+
+    if (chunk_type != 0x4E4F534Au) { fclose(f); return result; }
+
+    std::string json(chunk_len, '\0');
+    fread(json.data(), 1, chunk_len, f);
+    fclose(f);
+
+    rapidjson::Document doc;
+    doc.Parse(json.data(), json.size());
+    if (doc.HasParseError() || !doc.HasMember("materials")) return result;
+
+    const auto& materials = doc["materials"];
+    for (rapidjson::SizeType i = 0; i < materials.Size(); i++) {
+        int raylib_idx = static_cast<int>(i) + 1;
+        const char* mat_name_raw = nullptr;
+        if (materials[i].HasMember("name") && materials[i]["name"].IsString()) {
+            mat_name_raw = materials[i]["name"].GetString();
+            result[mat_name_raw] = raylib_idx;
+        }
+        if (materials[i].HasMember("extras") && materials[i]["extras"].IsObject()) {
+            const auto& extras = materials[i]["extras"];
+            if (extras.HasMember("shaderType") && extras["shaderType"].IsString()) {
+                std::string shader = extras["shaderType"].GetString();
+                if (shader == "taikoEffectChangeColors")
+                    recolor_out.push_back(raylib_idx);
+                else if (shader == "taikoEffectFace" && face_out == -1)
+                    face_out = raylib_idx;
+            }
+        }
+        if (mat_name_raw) {
+            std::string nl = name_lower(mat_name_raw);
+            if (nl.find("_aa_add") != std::string::npos)
+                additive_out.push_back(raylib_idx);
+            else if (nl.find("_color_s_cus_") != std::string::npos &&
+                     nl.find("_a_ab") == std::string::npos)
+                force_opaque_out.push_back(raylib_idx);
+        }
+    }
+    return result;
+}
+
+Chara3D::Chara3D(std::string& model_name, bool mirror) {
     outline_shader = ray::LoadShader("shader/outline.vs", "shader/outline.fs");
+    this->mirror = mirror;
     fs::path root_path = fs::path("Skins") / global_data.config->paths.skin / "Models";
-    fs::path model_path = root_path / (model_name + ".gltf");
+    fs::path model_path = root_path / "cos" / (model_name + ".glb");
     fs::path anim_path = root_path / "animations.glb";
-    model = ray::LoadModel(model_path.string().c_str());
+    cos_model = ray::LoadModel(model_path.string().c_str());
+    for (int m = 0; m < cos_model.meshCount; m++) {
+        auto& mesh = cos_model.meshes[m];
+        if (mesh.colors == nullptr) continue;
+        for (int v = 0; v < mesh.vertexCount * 4; v++) mesh.colors[v] = 255;
+        ray::UpdateMeshBuffer(mesh, 3, mesh.colors, mesh.vertexCount * 4, 0);
+    }
+    material_indices = parse_glb_material_indices(model_path.string(), recolor_indices, face_material_index, additive_indices, force_opaque_indices);
+    additive_indices.erase(
+        std::remove(additive_indices.begin(), additive_indices.end(), face_material_index),
+        additive_indices.end());
+    for (int idx : additive_indices)
+        cos_model.materials[idx].maps[ray::MATERIAL_MAP_DIFFUSE].color = {255, 255, 255, 255};
+    for (int idx : force_opaque_indices) {
+        auto& map = cos_model.materials[idx].maps[ray::MATERIAL_MAP_DIFFUSE];
+        if (map.texture.id != 0) {
+            ray::Image img = ray::LoadImageFromTexture(map.texture);
+            ray::ImageFormat(&img, ray::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
+            unsigned char* px = (unsigned char*)img.data;
+            for (int p = 0; p < img.width * img.height; p++) px[p * 4 + 3] = 255;
+            ray::UnloadTexture(map.texture);
+            map.texture = ray::LoadTextureFromImage(img);
+            ray::UnloadImage(img);
+        }
+    }
     ray::Model glb_model = ray::LoadModel(anim_path.string().c_str());
     anims = ray::LoadModelAnimations(anim_path.string().c_str(), &anim_count);
-    reindex_animations(model, glb_model, anims, anim_count);
+    reindex_animations(cos_model, glb_model, anims, anim_count);
     ray::UnloadModel(glb_model);
-    fs::path texture_path = "Skins/PyTaikoGreen/Models/faces/0/4.png";
-    set_face_texture(texture_path);
-    set_body_colors({104, 191, 192, 255}, {249, 240, 225, 255});
-    set_face_colors({249, 71, 40, 255}, {249, 240, 225, 255});
+    set_don_colors({104, 191, 192, 255}, {249, 71, 40, 255}, {249, 240, 225, 255});
+
+    fs::path face_dir = root_path / "face";
+    load_face_textures(face_dir);
+
+    fs::path skin_anim_path = fs::path("Skins") / global_data.config->paths.skin
+                              / "Graphics" / "global" / "animation.json";
+    load_face_anims(skin_anim_path);
+
+    set_anim(anim_index);
 }
 
 Chara3D::~Chara3D() {
+    if (face_material_index != -1 && !face_textures.empty())
+        cos_model.materials[face_material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture.id = 0;
     ray::UnloadModelAnimations(anims, anim_count);
-    ray::UnloadModel(model);
+    ray::UnloadModel(cos_model);
     ray::UnloadShader(outline_shader);
+    for (auto& tex : face_textures)
+        ray::UnloadTexture(tex);
 }
 
 void Chara3D::set_texture(fs::path& texture_path, int material_index) {
-    ray::Texture2D old = model.materials[material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture;
+    ray::Texture2D old = cos_model.materials[material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture;
     if (old.id != 0) ray::UnloadTexture(old);
     ray::Texture2D tex = ray::LoadTexture(texture_path.string().c_str());
     int map_type = ray::MATERIAL_MAP_DIFFUSE;
-    ray::SetMaterialTexture(&model.materials[material_index], map_type, tex);
+    ray::SetMaterialTexture(&cos_model.materials[material_index], map_type, tex);
 }
 
 void Chara3D::set_body_texture(fs::path& texture_path) {
-    set_texture(texture_path, model.materialCount - 3);
+    auto it = material_indices.find("RGB_don_color_S_CUS_0x10000001_");
+    if (it != material_indices.end()) set_texture(texture_path, it->second);
 }
 
 void Chara3D::set_face_rim_texture(fs::path& texture_path) {
-    set_texture(texture_path, model.materialCount - 2);
+    auto it = material_indices.find("don_FACEHIP_color_S_CUS_0x10000001_");
+    if (it != material_indices.end()) set_texture(texture_path, it->second);
 }
 
-void Chara3D::set_face_texture(fs::path& texture_path) {
-    set_texture(texture_path, model.materialCount - 1);
+void Chara3D::load_face_textures(fs::path& face_dir) {
+    if (!fs::exists(face_dir)) return;
+    std::vector<fs::path> paths;
+    for (auto& e : fs::directory_iterator(face_dir)) {
+        if (e.path().extension() == ".png")
+            paths.push_back(e.path());
+    }
+    if (paths.empty()) return;
+    std::sort(paths.begin(), paths.end());
+    ray::Image sheet = ray::LoadImage(paths[0].string().c_str());
+    for (int f = 0; f < 12; f++) {
+        ray::Rectangle rect = {0, (float)(f * 128), 128, 128};
+        ray::Image frame_img = ray::ImageFromImage(sheet, rect);
+        face_textures.push_back(ray::LoadTextureFromImage(frame_img));
+        ray::UnloadImage(frame_img);
+    }
+    ray::UnloadImage(sheet);
+    apply_face(0);
+}
+
+void Chara3D::load_face_anims(fs::path& anim_path) {
+    if (!fs::exists(anim_path)) return;
+    std::ifstream f(anim_path.string());
+    if (!f.is_open()) return;
+    std::string json_str((std::istreambuf_iterator<char>(f)),
+                          std::istreambuf_iterator<char>());
+    AnimationParser parser;
+    face_anims = parser.parseAnimationsFromString(json_str);
+}
+
+void Chara3D::apply_face(int face_index) {
+    if (face_material_index == -1) return;
+    if (face_index < 0 || face_index >= (int)face_textures.size()) return;
+    cos_model.materials[face_material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture =
+        face_textures[face_index];
+    current_face_index = face_index;
 }
 
 static ray::Texture2D recolor_texture(ray::Image& source,
-                                       ray::Color from_a, ray::Color to_a,
-                                       ray::Color from_b, ray::Color to_b) {
+                                       ray::Color body, ray::Color face, ray::Color rim) {
     ray::Image img = ray::ImageCopy(source);
     ray::ImageFormat(&img, ray::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
@@ -112,35 +245,19 @@ static ray::Texture2D recolor_texture(ray::Image& source,
         float r = pixels[i * 4 + 0] / 255.0f;
         float g = pixels[i * 4 + 1] / 255.0f;
         float b = pixels[i * 4 + 2] / 255.0f;
-        float a = pixels[i * 4 + 3] / 255.0f;
 
-        float brightness = r + g + b;
-        if (brightness < 0.1f) continue;
+        float strongest = fmaxf(r, fmaxf(g, b));
+        float weakest   = fminf(r, fminf(g, b));
+        if (strongest <= 0.05f || (strongest - weakest) <= 0.08f) continue;
 
-        auto similarity = [](float r, float g, float b, ray::Color c) {
-            float cr = c.r / 255.0f, cg = c.g / 255.0f, cb = c.b / 255.0f;
-            float len = sqrtf(cr*cr + cg*cg + cb*cb);
-            if (len == 0) return 0.0f;
-            return (r*cr + g*cg + b*cb) / len;
-        };
+        ray::Color out;
+        if (b > r && b >= g)     out = rim;
+        else if (g > r && g > b) out = face;
+        else                      out = body;
 
-        float wa = similarity(r, g, b, from_a);
-        float wb = similarity(r, g, b, from_b);
-        float total_w = wa + wb;
-        if (total_w == 0) continue;
-        wa /= total_w;
-        wb /= total_w;
-
-        float intensity = brightness / 3.0f;
-
-        float nr = (wa * (to_a.r / 255.0f) + wb * (to_b.r / 255.0f)) * intensity * 3.0f;
-        float ng = (wa * (to_a.g / 255.0f) + wb * (to_b.g / 255.0f)) * intensity * 3.0f;
-        float nb = (wa * (to_a.b / 255.0f) + wb * (to_b.b / 255.0f)) * intensity * 3.0f;
-
-        pixels[i * 4 + 0] = (unsigned char)(fminf(nr, 1.0f) * 255.0f);
-        pixels[i * 4 + 1] = (unsigned char)(fminf(ng, 1.0f) * 255.0f);
-        pixels[i * 4 + 2] = (unsigned char)(fminf(nb, 1.0f) * 255.0f);
-        pixels[i * 4 + 3] = (unsigned char)(a * 255.0f);
+        pixels[i * 4 + 0] = out.r;
+        pixels[i * 4 + 1] = out.g;
+        pixels[i * 4 + 2] = out.b;
     }
 
     ray::Texture2D result = ray::LoadTextureFromImage(img);
@@ -148,37 +265,50 @@ static ray::Texture2D recolor_texture(ray::Image& source,
     return result;
 }
 
-void Chara3D::set_body_colors(ray::Color body, ray::Color rim) {
-    auto& map = model.materials[model.materialCount - 3].maps[ray::MATERIAL_MAP_DIFFUSE];
-    ray::Image orig_body_img = ray::LoadImageFromTexture(map.texture);
-    ray::Texture2D new_tex = recolor_texture(orig_body_img,
-        {255, 0, 0, 255}, body,    // red -> body color
-        {0, 0, 255, 255}, rim);    // blue -> rim color
+static void apply_don_colors(ray::Model& model, int mat_idx,
+                              ray::Color body, ray::Color face, ray::Color rim) {
+    auto& map = model.materials[mat_idx].maps[ray::MATERIAL_MAP_DIFFUSE];
+    ray::Image img = ray::LoadImageFromTexture(map.texture);
+    ray::Texture2D new_tex = recolor_texture(img, body, face, rim);
+    ray::UnloadImage(img);
     ray::UnloadTexture(map.texture);
     map.texture = new_tex;
 }
 
-void Chara3D::set_face_colors(ray::Color face, ray::Color rim) {
-    auto& map = model.materials[model.materialCount - 2].maps[ray::MATERIAL_MAP_DIFFUSE];
-    ray::Image orig_face_img = ray::LoadImageFromTexture(map.texture);
-    ray::Texture2D new_tex = recolor_texture(orig_face_img,
-        {0, 255, 0, 255}, face,    // green -> face color
-        {0, 0, 255, 255}, rim);    // blue -> rim color
-    ray::UnloadTexture(map.texture);
-    map.texture = new_tex;
+void Chara3D::set_don_colors(ray::Color body, ray::Color face, ray::Color rim) {
+    for (int idx : recolor_indices)
+        apply_don_colors(cos_model, idx, body, face, rim);
 }
 
-void Chara3D::set_anim(int idx) {
-    if (idx >= 0 && idx < anim_count) {
-        if (idx == 20 || idx == 21) {
+static constexpr int FACE_ANIM_IDS[] = {
+    13, 14, 15, 16, 65, 17, 22, 19, 30, 29, 23, 24, 63, 44,
+    40, 41, 42, 43, 44, 45, 46, 58, 59, 62, 60, 18,
+    13, 14, 15, 16, 65, 17, 22, 19, 30, 29, 23, 24, 63, 44,
+    41, 40, 42, 43, 44, 45, 46, 58, 59, 62, 60, 18,
+};
+
+void Chara3D::set_anim(AnimIndex idx) {
+    int i = static_cast<int>(idx);
+    if (i >= 0 && i < anim_count) {
+        if (idx == AnimIndex::DON_NORMAL || idx == AnimIndex::DON_SABI) {
             is_looping = true;
-        } else if (get_anim_name(idx).find("loop") == std::string::npos) {
+        } else if (get_anim_name(i).find("loop") == std::string::npos) {
             is_looping = false;
             prev_anim_idx = anim_index;
         }
         anim_index = idx;
         anim_frame = 0;
         last_frame_ms = 0;
+    }
+
+    if (i >= 0 && i < (int)(sizeof(FACE_ANIM_IDS) / sizeof(FACE_ANIM_IDS[0]))) {
+        auto it = face_anims.find(FACE_ANIM_IDS[i]);
+        if (it != face_anims.end()) {
+            current_face_anim = it->second.get();
+            current_face_anim->reset();
+            current_face_anim->start();
+            apply_face((int)current_face_anim->attribute);
+        }
     }
 }
 
@@ -200,12 +330,14 @@ int Chara3D::get_anim_count() const {
 void Chara3D::update(double current_ms) {
     if (anim_count > 0) {
         double ms_per_beat = 60000.0 / bpm;
-        if (anim_index == 20 || anim_index == 21) ms_per_beat *= 3;
-        double ms_per_frame = ms_per_beat / anims[anim_index].keyframeCount;
+        if (anim_index == AnimIndex::DON_NORMAL || anim_index == AnimIndex::DON_SABI) ms_per_beat *= 3;
+        if (anim_index == AnimIndex::DON_BALLOON_LOOP) ms_per_beat /= 2;
+        int ai = static_cast<int>(anim_index);
+        double ms_per_frame = ms_per_beat / anims[ai].keyframeCount;
         if (current_ms - last_frame_ms >= ms_per_frame) {
-            int loop_frames = anims[anim_index].keyframeCount - 1;
+            int loop_frames = anims[ai].keyframeCount - 1;
             anim_frame = (anim_frame + 1) % loop_frames;
-            ray::UpdateModelAnimation(model, anims[anim_index], anim_frame);
+            ray::UpdateModelAnimation(cos_model, anims[ai], anim_frame);
             last_frame_ms = current_ms;
 
             if (!is_looping && anim_frame == loop_frames - 1) {
@@ -214,6 +346,13 @@ void Chara3D::update(double current_ms) {
             }
         }
     }
+
+    if (current_face_anim) {
+        current_face_anim->update(current_ms);
+        int new_face = (int)current_face_anim->attribute;
+        if (new_face != current_face_index)
+            apply_face(new_face);
+    }
 }
 
 void Chara3D::draw(float x, float y) {
@@ -221,36 +360,32 @@ void Chara3D::draw(float x, float y) {
     glClear(GL_DEPTH_BUFFER_BIT);
     rlEnableDepthTest();
 
-    ray::Matrix saved = model.transform;
-    ray::Matrix transform = rotation_xyz(rot_x * DEG2RAD, rot_y * DEG2RAD, rot_z * DEG2RAD);
-    model.transform = transform;
+    ray::Matrix saved = cos_model.transform;
+    float y_angle = mirror ? -rot_y : rot_y;
+    cos_model.transform = rotation_xyz(rot_x * DEG2RAD, y_angle * DEG2RAD, rot_z * DEG2RAD);
 
-    ray::Shader saved_shaders[model.materialCount];
-    for (int i = 0; i < model.materialCount; i++) {
-        saved_shaders[i] = model.materials[i].shader;
-        model.materials[i].shader = outline_shader;
+    ray::Shader saved_shaders[cos_model.materialCount];
+    for (int i = 0; i < cos_model.materialCount; i++) {
+        saved_shaders[i] = cos_model.materials[i].shader;
+        cos_model.materials[i].shader = outline_shader;
     }
 
     int thickness_loc = ray::GetShaderLocation(outline_shader, "outlineThickness");
     ray::SetShaderValue(outline_shader, thickness_loc, &outline_thickness, ray::SHADER_UNIFORM_FLOAT);
 
-    int screen_size_loc = ray::GetShaderLocation(outline_shader, "screenSize");
-    float screen_size[2] = { (float)ray::GetScreenWidth(), (float)ray::GetScreenHeight() };
-    ray::SetShaderValue(outline_shader, screen_size_loc, screen_size, ray::SHADER_UNIFORM_VEC2);
-
     rlDisableDepthTest();
     glCullFace(GL_FRONT);
-    ray::DrawModel(model, {x, y, 400.0f}, scale, ray::WHITE);
+    ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
     glCullFace(GL_BACK);
 
-    for (int i = 0; i < model.materialCount; i++)
-        model.materials[i].shader = saved_shaders[i];
+    for (int i = 0; i < cos_model.materialCount; i++)
+        cos_model.materials[i].shader = saved_shaders[i];
 
     rlDrawRenderBatchActive();
     glClear(GL_DEPTH_BUFFER_BIT);
     rlEnableDepthTest();
-    ray::DrawModel(model, {x, y, 400.0f}, scale, ray::WHITE);
+    ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
 
-    model.transform = saved;
+    cos_model.transform = saved;
     rlDisableDepthTest();
 }

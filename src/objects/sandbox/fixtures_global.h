@@ -21,10 +21,10 @@ struct Chara3DFixture : public SandboxScreen::Fixture {
     Chara3DFixture() {
         name = "Chara3D";
         screen = "global";
-        fs::path models_dir = fs::path("Skins") / global_data.config->paths.skin / "Models";
+        fs::path models_dir = fs::path("Skins") / global_data.config->paths.skin / "Models/cos";
         if (fs::exists(models_dir)) {
             for (auto& entry : fs::directory_iterator(models_dir)) {
-                if (entry.path().extension() == ".gltf") {
+                if (entry.path().extension() == ".glb") {
                     std::string stem = entry.path().stem().string();
                     if (stem.rfind("cos_", 0) == 0)
                         model_names.push_back(stem);
@@ -39,7 +39,7 @@ struct Chara3DFixture : public SandboxScreen::Fixture {
 
     void reset(double) override {
         active.emplace(model_names[model_idx]);
-        active->set_anim(anim_idx);
+        active->set_anim(static_cast<AnimIndex>(anim_idx));
     }
 
     void on_space(double ms) override { reset(ms); }
@@ -47,7 +47,7 @@ struct Chara3DFixture : public SandboxScreen::Fixture {
     void on_tab(double) override {
         if (!active) return;
         anim_idx = (anim_idx + 1) % active->get_anim_count();
-        active->set_anim(anim_idx);
+        active->set_anim(static_cast<AnimIndex>(anim_idx));
     }
 
     void update(double ms) override { if (active) active->update(ms); }

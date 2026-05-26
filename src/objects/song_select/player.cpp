@@ -23,8 +23,8 @@ SongSelectPlayer::SongSelectPlayer(PlayerNum player_num)
     diff_select_move_right = false;
     last_moved = 0;
 
-    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name);
-    chara->set_anim(23);
+    chara = std::make_unique<Chara3D>(global_data.config->general.costume_name, player_num == PlayerNum::P2);
+    chara->set_anim(AnimIndex::DON_SELECT_LOOP);
 
     diff_selector_move_1          = (MoveAnimation*)tex.get_animation(26, true);
     diff_selector_move_2          = (MoveAnimation*)tex.get_animation(27, true);
@@ -50,7 +50,7 @@ void SongSelectPlayer::update(double current_time) {
         neiro_selector->update(current_time);
         if (neiro_selector->is_finished) {
             neiro_selector.reset();
-            chara->set_anim(24);
+            chara->set_anim(AnimIndex::DON_SELECT_PANELDOWN);
         }
     }
 
@@ -58,7 +58,7 @@ void SongSelectPlayer::update(double current_time) {
         modifier_selector->update(current_time);
         if (modifier_selector->is_finished) {
             modifier_selector.reset();
-            chara->set_anim(24);
+            chara->set_anim(AnimIndex::DON_SELECT_PANELDOWN);
         }
     }
     if (ura_switch.has_value()) ura_switch->update(current_time);
@@ -227,10 +227,10 @@ SongSelectState SongSelectPlayer::handle_input_selecting() {
         } else {
             if (selected_difficulty == Difficulty::MODIFIER) {
                 modifier_selector = ModifierSelector(player_num);
-                chara->set_anim(25);
+                chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
             } else if (selected_difficulty == Difficulty::NEIRO) {
                 neiro_selector = NeiroSelector(player_num);
-                chara->set_anim(25);
+                chara->set_anim(AnimIndex::DON_SELECT_PANELUP);
             } else if (selected_difficulty >= Difficulty::EASY) {
                 voice_played = true;
                 start_background_diffs();

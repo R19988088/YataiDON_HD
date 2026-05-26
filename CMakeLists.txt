@@ -155,7 +155,7 @@ else()
   FetchContent_Declare(
       libsndfile
       GIT_REPOSITORY https://github.com/libsndfile/libsndfile.git
-      GIT_TAG 1.2.2
+      GIT_TAG master
       GIT_SHALLOW TRUE
     )
   FetchContent_MakeAvailable(libsndfile)

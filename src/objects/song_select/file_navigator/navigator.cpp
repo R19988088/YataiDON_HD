@@ -110,12 +110,12 @@ void Navigator::init(std::vector<fs::path> songs_paths) {
                 pending_inline_folder->expand_box();
             }
             set_positions(false, 0);
-            get_current_item()->expand_box();
+            if (!items.empty()) get_current_item()->expand_box();
         }
     }
     background_move = (MoveAnimation*)tex.get_animation(0);
     background_fade_change = (FadeAnimation*)tex.get_animation(5);
-    bg_genre_index = items[open_index]->genre_index;
+    bg_genre_index = items.empty() ? GenreIndex::TUTORIAL : items[open_index]->genre_index;
     last_bg_genre_index = bg_genre_index;
     if (genre_bg.has_value()) genre_bg->fade_in();
 }
@@ -245,7 +245,7 @@ void Navigator::flush_pending_boxes() {
                 items[sortable_indices[j]] = std::move(sortable[j]);
         }
         set_positions(false, 800);
-        items[open_index]->expand_box();
+        if (!items.empty()) items[open_index]->expand_box();
         is_processing = false;
         loading_complete = false;
     }
@@ -790,7 +790,7 @@ void Navigator::load_current_directory(const fs::path path) {
     BoxDef box_def = parse_box_def(path);
     bool has_children = has_child_folders(path);
 
-    if (!has_children) {
+    if (!has_children && !items.empty()) {
         InlineState state;
         state.folder_index     = open_index;
         state.first_song_index = open_index + 1;
@@ -879,6 +879,7 @@ bool Navigator::is_song(BaseBox* item) {
 }
 
 BaseBox* Navigator::get_current_item() {
+    if (items.empty()) return nullptr;
     return items[open_index].get();
 }
 
@@ -914,6 +915,7 @@ void Navigator::set_positions(bool init, float duration) {
 }
 
 void Navigator::navigate(int delta, bool snap) {
+    if (items.empty()) return;
     items[open_index]->close_box();
     last_bg_genre_index = bg_genre_index;
     open_index = (open_index + delta + (int)items.size()) % (int)items.size();
@@ -1044,7 +1046,7 @@ void Navigator::draw(bool is_ura) {
         float start_pos;
         float end_pos;
 
-        if ((is_processing || !items[open_index]->fade->is_finished) &&
+        if ((!items.empty() && (is_processing || !items[open_index]->fade->is_finished)) &&
             pending_inline_folder != nullptr && genre_bg_end_pos.has_value()) {
             start_pos = pending_inline_folder->left_bound;
             end_pos = genre_bg_end_pos.value();  // approximation while loading
