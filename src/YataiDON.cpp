@@ -1,12 +1,5 @@
 #include <iostream>
 #include <rlgl.h>
-#include <backward.hpp>
-
-#ifndef __SANITIZE_ADDRESS__
-namespace backward {
-    SignalHandling sh;
-}
-#endif
 
 #include "libs/audio.h"
 #include "libs/global_data.h"

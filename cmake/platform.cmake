@@ -16,6 +16,8 @@ if(WIN32)
         bcrypt
         secur32
         ws2_32
+        ucrtbase
+        dbghelp
     )
   if(TARGET SDL3::SDL3-static)
     target_link_libraries(${PROJECT_NAME} PRIVATE SDL3::SDL3-static)
@@ -100,6 +102,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_options(${PROJECT_NAME} PRIVATE
             -O0
             -g
+            -gdwarf-4
             -fmax-errors=0
             -fno-omit-frame-pointer
         )
@@ -113,14 +116,24 @@ elseif(CMAKE_BUILD_TYPE STREQUAL "Profiling")
     )
   message(STATUS "Profiler build")
 else()
-  target_compile_options(${PROJECT_NAME} PRIVATE
-        -O2
-        -march=x86-64
-        -DNDEBUG
-        -flto=auto
-        -g
-    )
-  target_link_options(${PROJECT_NAME} PRIVATE
-        -flto=auto
-    )
+  if(WIN32)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+          -O2
+          -march=x86-64
+          -DNDEBUG
+          -g
+          -gdwarf-4
+          -fno-omit-frame-pointer
+      )
+  else()
+    target_compile_options(${PROJECT_NAME} PRIVATE
+          -O2
+          -march=x86-64
+          -DNDEBUG
+          -flto=auto
+          -g
+          -fno-omit-frame-pointer
+      )
+    target_link_options(${PROJECT_NAME} PRIVATE -flto=auto)
+  endif()
 endif()

@@ -106,11 +106,18 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(sol2)
 
-FetchContent_Declare(backward
-    GIT_REPOSITORY https://github.com/bombela/backward-cpp
-    GIT_TAG master
+set(ZLIB_USE_STATIC_LIBS ON)
+if(WIN32)
+  set(CPPTRACE_GET_SYMBOLS_WITH_ADDR2LINE ON CACHE BOOL "" FORCE)
+  set(CPPTRACE_UNWIND_WITH_DBGHELP        ON CACHE BOOL "" FORCE)
+endif()
+FetchContent_Declare(
+    cpptrace
+    GIT_REPOSITORY https://github.com/jeremy-rifkin/cpptrace.git
+    GIT_TAG        main
+    GIT_SHALLOW    TRUE
 )
-FetchContent_MakeAvailable(backward)
+FetchContent_MakeAvailable(cpptrace)
 
 # libsndfile
 if(WIN32)
