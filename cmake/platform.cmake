@@ -125,6 +125,14 @@ else()
           -gdwarf-4
           -fno-omit-frame-pointer
       )
+  elseif(APPLE)
+    target_compile_options(${PROJECT_NAME} PRIVATE
+          -O2
+          -DNDEBUG
+          -flto=auto
+          -g
+          -fno-omit-frame-pointer
+      )
   else()
     target_compile_options(${PROJECT_NAME} PRIVATE
           -O2
