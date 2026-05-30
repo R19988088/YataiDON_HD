@@ -237,24 +237,20 @@ jobs:
           (cd linux   && zip -r ../YataiDON-Linux.zip .)
           (cd windows && zip -r ../YataiDON-Windows.zip .)
 
-          # Binary and archives
-          cp linux/YataiDON ./YataiDON
-          tar -czf shader.tar.gz -C linux shader/
-          [ -d linux/lib ] && tar -czf lib.tar.gz -C linux lib/ || true
-
           # Checksums and skin manifest generated during build
           cp linux/checksums.sha256 ./checksums.sha256
           cp linux/skin-manifest.tsv ./skin-manifest.tsv
 
-          # Individual files for non-git-managed skins only ('/' encoded as '__')
+          # Single update package: binary + shader + lib + non-git skins
           SUBMODULE_SKINS=$(awk -F'\t' '{print $1}' linux/skin-manifest.tsv)
-          while IFS= read -r filepath; do
-            rel_path="${filepath#linux/}"
-            skin_dir="Skins/$(echo "$rel_path" | cut -d/ -f2)"
-            echo "$SUBMODULE_SKINS" | grep -qx "$skin_dir" && continue || true
-            encoded="${rel_path//\//__}"
-            cp "$filepath" "$encoded"
-          done < <(find linux/Skins -type f -not -path '*/.git/*')
+          UPDATE_PATHS="YataiDON shader/"
+          [ -d linux/lib ] && UPDATE_PATHS="$UPDATE_PATHS lib/"
+          for skin_dir in linux/Skins/*/; do
+            skin_name=$(basename "$skin_dir")
+            echo "$SUBMODULE_SKINS" | grep -qx "Skins/$skin_name" && continue || true
+            UPDATE_PATHS="$UPDATE_PATHS Skins/$skin_name"
+          done
+          tar -czf update.tar.gz --exclude='*/.git' -C linux $UPDATE_PATHS
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
@@ -262,10 +258,7 @@ jobs:
           files: |
             YataiDON-Linux.zip
             YataiDON-Windows.zip
-            YataiDON
-            shader.tar.gz
-            lib.tar.gz
-            Skins__*
+            update.tar.gz
             checksums.sha256
             skin-manifest.tsv
           name: "YataiDON [Latest Release]"
