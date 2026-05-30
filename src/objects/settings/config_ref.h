@@ -77,10 +77,14 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "keys_2p/left_don")      return &c->keys_2p.left_don;
     if (path == "keys_2p/right_don")     return &c->keys_2p.right_don;
     if (path == "keys_2p/right_kat")     return &c->keys_2p.right_kat;
-    if (path == "gamepad/left_kat")      return &c->gamepad.left_kat;
-    if (path == "gamepad/left_don")      return &c->gamepad.left_don;
-    if (path == "gamepad/right_don")     return &c->gamepad.right_don;
-    if (path == "gamepad/right_kat")     return &c->gamepad.right_kat;
+    if (path == "gamepad_1p/left_kat")   return &c->gamepad_1p.left_kat;
+    if (path == "gamepad_1p/left_don")   return &c->gamepad_1p.left_don;
+    if (path == "gamepad_1p/right_don")  return &c->gamepad_1p.right_don;
+    if (path == "gamepad_1p/right_kat")  return &c->gamepad_1p.right_kat;
+    if (path == "gamepad_2p/left_kat")   return &c->gamepad_2p.left_kat;
+    if (path == "gamepad_2p/left_don")   return &c->gamepad_2p.left_don;
+    if (path == "gamepad_2p/right_don")  return &c->gamepad_2p.right_don;
+    if (path == "gamepad_2p/right_kat")  return &c->gamepad_2p.right_kat;
     // audio
     if (path == "audio/device_type")     return &c->audio.device_type;
     if (path == "audio/sample_rate")     return &c->audio.sample_rate;

@@ -288,20 +288,31 @@ Config get_config() {
         }
     }
 
-    // Parse gamepad
-    if (auto gamepad = config_file["gamepad"].as_table()) {
-        if (auto left_kat = (*gamepad)["left_kat"].as_array()) {
-            config.gamepad.left_kat = parseIntArray(*left_kat);
-        }
-        if (auto left_don = (*gamepad)["left_don"].as_array()) {
-            config.gamepad.left_don = parseIntArray(*left_don);
-        }
-        if (auto right_don = (*gamepad)["right_don"].as_array()) {
-            config.gamepad.right_don = parseIntArray(*right_don);
-        }
-        if (auto right_kat = (*gamepad)["right_kat"].as_array()) {
-            config.gamepad.right_kat = parseIntArray(*right_kat);
-        }
+    // Parse gamepad_1p (fallback to legacy [gamepad] if missing)
+    auto gamepad_1p_node = config_file["gamepad_1p"].as_table()
+                         ? config_file["gamepad_1p"].as_table()
+                         : config_file["gamepad"].as_table();
+    if (gamepad_1p_node) {
+        if (auto left_kat = (*gamepad_1p_node)["left_kat"].as_array())
+            config.gamepad_1p.left_kat = parseIntArray(*left_kat);
+        if (auto left_don = (*gamepad_1p_node)["left_don"].as_array())
+            config.gamepad_1p.left_don = parseIntArray(*left_don);
+        if (auto right_don = (*gamepad_1p_node)["right_don"].as_array())
+            config.gamepad_1p.right_don = parseIntArray(*right_don);
+        if (auto right_kat = (*gamepad_1p_node)["right_kat"].as_array())
+            config.gamepad_1p.right_kat = parseIntArray(*right_kat);
+    }
+
+    // Parse gamepad_2p
+    if (auto gamepad_2p = config_file["gamepad_2p"].as_table()) {
+        if (auto left_kat = (*gamepad_2p)["left_kat"].as_array())
+            config.gamepad_2p.left_kat = parseIntArray(*left_kat);
+        if (auto left_don = (*gamepad_2p)["left_don"].as_array())
+            config.gamepad_2p.left_don = parseIntArray(*left_don);
+        if (auto right_don = (*gamepad_2p)["right_don"].as_array())
+            config.gamepad_2p.right_don = parseIntArray(*right_don);
+        if (auto right_kat = (*gamepad_2p)["right_kat"].as_array())
+            config.gamepad_2p.right_kat = parseIntArray(*right_kat);
     }
 
     // Parse audio
@@ -425,17 +436,30 @@ void save_config(const Config& config) {
         {"right_kat", right_kat_2p}
     });
 
-    toml::array gp_left_kat, gp_left_don, gp_right_don, gp_right_kat;
-    for (int btn : config.gamepad.left_kat)  gp_left_kat.push_back(btn);
-    for (int btn : config.gamepad.left_don)  gp_left_don.push_back(btn);
-    for (int btn : config.gamepad.right_don) gp_right_don.push_back(btn);
-    for (int btn : config.gamepad.right_kat) gp_right_kat.push_back(btn);
+    toml::array gp1_left_kat, gp1_left_don, gp1_right_don, gp1_right_kat;
+    for (int btn : config.gamepad_1p.left_kat)  gp1_left_kat.push_back(btn);
+    for (int btn : config.gamepad_1p.left_don)  gp1_left_don.push_back(btn);
+    for (int btn : config.gamepad_1p.right_don) gp1_right_don.push_back(btn);
+    for (int btn : config.gamepad_1p.right_kat) gp1_right_kat.push_back(btn);
 
-    config_table.insert("gamepad", toml::table{
-        {"left_kat", gp_left_kat},
-        {"left_don", gp_left_don},
-        {"right_don", gp_right_don},
-        {"right_kat", gp_right_kat}
+    config_table.insert("gamepad_1p", toml::table{
+        {"left_kat", gp1_left_kat},
+        {"left_don", gp1_left_don},
+        {"right_don", gp1_right_don},
+        {"right_kat", gp1_right_kat}
+    });
+
+    toml::array gp2_left_kat, gp2_left_don, gp2_right_don, gp2_right_kat;
+    for (int btn : config.gamepad_2p.left_kat)  gp2_left_kat.push_back(btn);
+    for (int btn : config.gamepad_2p.left_don)  gp2_left_don.push_back(btn);
+    for (int btn : config.gamepad_2p.right_don) gp2_right_don.push_back(btn);
+    for (int btn : config.gamepad_2p.right_kat) gp2_right_kat.push_back(btn);
+
+    config_table.insert("gamepad_2p", toml::table{
+        {"left_kat", gp2_left_kat},
+        {"left_don", gp2_left_don},
+        {"right_don", gp2_right_don},
+        {"right_kat", gp2_right_kat}
     });
 
     // Audio

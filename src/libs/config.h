@@ -99,7 +99,8 @@ struct Config {
     KeysConfig keys;
     Keys1PConfig keys_1p;
     Keys2PConfig keys_2p;
-    GamepadConfig gamepad;
+    GamepadConfig gamepad_1p;
+    GamepadConfig gamepad_2p;
     AudioConfig audio;
     VolumeConfig volume;
     VideoConfig video;
