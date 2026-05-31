@@ -188,7 +188,7 @@ else()
     FetchContent_Declare(
               libsamplerate
               GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
-              GIT_TAG 0.2.2
+              GIT_TAG master
               GIT_SHALLOW TRUE
           )
     FetchContent_MakeAvailable(libsamplerate)
