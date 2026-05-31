@@ -65,9 +65,6 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
 
 }
 
-static std::string hash_col(int difficulty) {
-    return "hash_" + std::to_string(difficulty);
-}
 
 void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
     // Build reverse lookup: (en_name, jp_name) -> new hashes
@@ -157,8 +154,7 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
             sqlite3_stmt* check_stmt;
             char check_query[256];
             snprintf(check_query, sizeof(check_query),
-                "SELECT 1 FROM scores WHERE player_id = 1 AND %s = ? AND difficulty = ? LIMIT 1;",
-                hash_col(diff).c_str());
+                "SELECT 1 FROM scores WHERE player_id = 1 AND hash = ? AND difficulty = ? LIMIT 1;");
             if (sqlite3_prepare_v2(db_fsd, check_query, -1, &check_stmt, nullptr) != SQLITE_OK) {
                 spdlog::warn("py_taiko_import: failed to prepare check statement, skipping");
                 skipped++;
