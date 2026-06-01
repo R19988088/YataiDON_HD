@@ -14,7 +14,8 @@
 
 enum class EntryState {
     SELECT_SIDE = 0,
-    SELECT_MODE = 1
+    SELECT_MODE = 1,
+    SELECT_COSTUME = 2
 };
 
 class EntryScreen : public Screen {

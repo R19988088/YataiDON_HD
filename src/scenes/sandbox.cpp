@@ -4,6 +4,7 @@
 #include "../objects/sandbox/fixtures_result.h"
 #include "../objects/sandbox/fixtures_song_select.h"
 #include "../objects/sandbox/fixtures_global.h"
+#include "../objects/sandbox/fixtures_entry.h"
 
 static constexpr int SB_PANEL_W       = 220;
 static constexpr int SB_ITEM_H        = 32;
@@ -151,6 +152,9 @@ void SandboxScreen::on_screen_start() {
     fixtures.push_back(std::make_unique<ResultFadeInFixture>());
     fixtures.push_back(std::make_unique<BottomCharactersFixture>());
     fixtures.push_back(std::make_unique<HighScoreIndicatorFixture>());
+
+    // ── entry ─────────────────────────────────────────────────────────────────
+    fixtures.push_back(std::make_unique<CostumeMenuFixture>());
 
     // ── song_select ───────────────────────────────────────────────────────────
     fixtures.push_back(std::make_unique<DanTransitionFixture>());

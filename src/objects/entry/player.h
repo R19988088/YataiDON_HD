@@ -1,6 +1,7 @@
 #pragma once
 
 #include "box_manager.h"
+#include "costume_menu.h"
 #include "../global/nameplate.h"
 #include "../global/indicator.h"
 #include "../global/chara_3d.h"
@@ -13,6 +14,7 @@ private:
     std::unique_ptr<Nameplate> nameplate;
     std::unique_ptr<Indicator> indicator;
     std::unique_ptr<Chara3D> chara;
+    int chara_index = 0;
 
     MoveAnimation* drum_move_1;
     MoveAnimation* drum_move_2;
@@ -25,10 +27,14 @@ private:
 public:
     PlayerNum player_num;
     FadeAnimation* nameplate_fadein;
+    std::optional<CostumeMenu> costume_menu;
+
     EntryPlayer(PlayerNum player_num, int side, BoxManager* box_manager);
     void start_animations();
     void update(double current_time);
+    void open_costume_menu();
     void draw_drum();
+    void draw_costume_menu();
     void draw_nameplate_and_indicator(float fade = 1.0f);
     bool is_cloud_animation_finished();
     void handle_input();

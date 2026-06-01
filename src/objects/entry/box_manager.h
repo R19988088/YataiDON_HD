@@ -12,10 +12,15 @@ private:
     bool is_2p;
 
 public:
+    bool costume_menu_open;
+    PlayerNum opening_player = PlayerNum::P1;
+
     BoxManager();
     void select_box();
     bool is_box_selected();
     bool is_finished();
+    bool is_costume_box();
+    void open_costume_menu(PlayerNum player_num = PlayerNum::P1);
     Screens selected_box();
     void move_left();
     void move_right();

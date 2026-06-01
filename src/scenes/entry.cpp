@@ -11,7 +11,13 @@ void EntryScreen::on_screen_start() {
     NameplateConfig plate_info = global_data.config->nameplate_1p;
     nameplate = Nameplate(plate_info.name, plate_info.title, PlayerNum::ALL, -1, false, false, 0);
 
-    timer = std::make_unique<Timer>(60, get_current_ms(), [this]() { box_manager->select_box(); });
+    timer = std::make_unique<Timer>(60, get_current_ms(), [this]() {
+        if (box_manager->is_costume_box()) {
+            box_manager->open_costume_menu(global_data.player_num);
+        } else {
+            box_manager->select_box();
+        }
+    });
 
     lua_entry = std::make_unique<EntryScript>();
     lua_entry->start_side_select();
@@ -70,6 +76,10 @@ std::optional<Screens> EntryScreen::handle_input() {
             else
                 side = std::min(2, side + 1);
         }
+    } else if (state == EntryState::SELECT_COSTUME) {
+        for (auto& player : players) {
+            if (player) player->handle_input();
+        }
     } else if (state == EntryState::SELECT_MODE) {
         for (auto& player : players) {
             if (player) player->handle_input();
@@ -101,6 +111,21 @@ std::optional<Screens> EntryScreen::update() {
     chara->update(current_time);
     for (auto& player : players) {
         if (player) player->update(current_time);
+    }
+    if (box_manager->costume_menu_open) {
+        box_manager->costume_menu_open = false;
+        state = EntryState::SELECT_COSTUME;
+        for (auto& player : players) {
+            if (player && player->player_num == box_manager->opening_player)
+                player->open_costume_menu();
+        }
+    }
+    if (state == EntryState::SELECT_COSTUME) {
+        bool any_open = false;
+        for (auto& player : players) {
+            if (player && player->costume_menu.has_value()) { any_open = true; break; }
+        }
+        if (!any_open) state = EntryState::SELECT_MODE;
     }
     if (box_manager->is_finished()) {
         return on_screen_end(box_manager->selected_box());
@@ -150,6 +175,10 @@ void EntryScreen::draw() {
         draw_side_select(lua_entry->get_side_select_fade());
     } else if (state == EntryState::SELECT_MODE) {
         draw_mode_select();
+    } else if (state == EntryState::SELECT_COSTUME) {
+        for (auto& player : players) {
+            if (player) player->draw_costume_menu();
+        }
     }
 
     bool p1_joined = (players[0] && players[0]->player_num == PlayerNum::P1) ||

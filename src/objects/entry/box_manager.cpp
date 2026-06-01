@@ -1,8 +1,8 @@
 #include "box_manager.h"
 #include "../../libs/global_data.h"
 
-BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
-    box_locations = {Screens::SONG_SELECT, Screens::PRACTICE_SELECT, Screens::AI_SELECT, Screens::SETTINGS};
+BoxManager::BoxManager() : selected_box_index(0), is_2p(false), costume_menu_open(false) {
+    box_locations = {Screens::SONG_SELECT, Screens::PRACTICE_SELECT, Screens::ENTRY, Screens::SETTINGS};
 
     std::string lang = global_data.config->general.language;
     auto& skin = tex.skin_config;
@@ -13,6 +13,7 @@ BoxManager::BoxManager() : selected_box_index(0), is_2p(false) {
     };
     boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_GAME),       box_locations[0]));
     boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_PRACTICE),   box_locations[1]));
+    boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_COSTUME), box_locations[2]));
     //boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_AI_BATTLE),  box_locations[2]));
     boxes.push_back(std::make_unique<Box>(make_text(SC::ENTRY_SETTINGS),   box_locations[3]));
 
@@ -43,6 +44,15 @@ bool BoxManager::is_box_selected() {
 
 bool BoxManager::is_finished() {
     return fade_out->is_finished;
+}
+
+bool BoxManager::is_costume_box() {
+    return boxes[selected_box_index]->location == Screens::ENTRY;
+}
+
+void BoxManager::open_costume_menu(PlayerNum player_num) {
+    costume_menu_open = true;
+    opening_player = player_num;
 }
 
 Screens BoxManager::selected_box() {
@@ -78,7 +88,7 @@ void BoxManager::move_right() {
 void BoxManager::update(double current_time_ms, bool is_2p) {
     this->is_2p = is_2p;
     if (this->is_2p) {
-        box_locations = {Screens::SONG_SELECT_2P, Screens::PRACTICE_SELECT, /*Screens::AI_SELECT,*/ Screens::SETTINGS};
+        box_locations = {Screens::SONG_SELECT_2P, Screens::PRACTICE_SELECT, Screens::ENTRY, /*Screens::AI_SELECT,*/ Screens::SETTINGS};
         for (int i = 0; i < num_boxes; i++) {
             boxes[i]->location = box_locations[i];
         }

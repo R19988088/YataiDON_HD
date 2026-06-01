@@ -55,6 +55,11 @@ void EntryPlayer::update(double current_time) {
     nameplate->update(current_time);
     indicator->update(current_time);
     chara->update(current_time);
+    if (costume_menu) costume_menu->update(current_time);
+}
+
+void EntryPlayer::open_costume_menu() {
+    costume_menu.emplace(player_num);
 }
 
 void EntryPlayer::draw_drum() {
@@ -95,6 +100,13 @@ void EntryPlayer::draw_drum() {
     });
 }
 
+void EntryPlayer::draw_costume_menu() {
+    if (!costume_menu) return;
+    auto sc = (player_num == PlayerNum::P2) ? SC::ENTRY_COSTUME_MENU_2P : SC::ENTRY_COSTUME_MENU_1P;
+    auto& info = tex.skin_config[sc];
+    costume_menu->draw(info.x, info.y);
+}
+
 void EntryPlayer::draw_nameplate_and_indicator(float fade) {
     if (side == 0) {
         nameplate->draw(tex.skin_config[SC::NAMEPLATE_ENTRY_LEFT].x, tex.skin_config[SC::NAMEPLATE_ENTRY_LEFT].y, fade);
@@ -110,11 +122,34 @@ bool EntryPlayer::is_cloud_animation_finished() {
 }
 
 void EntryPlayer::handle_input() {
+    if (costume_menu) {
+        costume_menu->handle_input();
+        if (costume_menu->get_index().has_value()) {
+            int selected_index = costume_menu->get_index().value();
+            if (selected_index != chara_index) {
+                chara_index = selected_index;
+                std::string model_name = costume_menu->get_costume_name();
+                chara = std::make_unique<Chara3D>(model_name, player_num == PlayerNum::P2);
+            }
+        }
+        if (costume_menu->confirmed) {
+            global_data.config->general.costume_name = costume_menu->get_costume_name();
+            save_config(*global_data.config);
+            costume_menu.reset();
+            audio.play_sound("costume_select_" + std::to_string((int)player_num) + "p", VolumePreset::SOUND);
+            chara->set_anim(AnimIndex::DON_BALLOON_SUCCESS);
+        }
+        return;
+    }
     if (box_manager->is_box_selected()) return;
 
     if (is_l_don_pressed(player_num) || is_r_don_pressed(player_num)) {
         audio.play_sound("don", VolumePreset::SOUND);
-        box_manager->select_box();
+        if (box_manager->is_costume_box()) {
+            box_manager->open_costume_menu(player_num);
+        } else {
+            box_manager->select_box();
+        }
     }
     if (is_l_kat_pressed(player_num)) {
         audio.play_sound("kat", VolumePreset::SOUND);

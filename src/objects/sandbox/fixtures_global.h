@@ -24,15 +24,18 @@ struct Chara3DFixture : public SandboxScreen::Fixture {
         fs::path models_dir = fs::path("Skins") / global_data.config->paths.skin / "Models/cos";
         if (fs::exists(models_dir)) {
             for (auto& entry : fs::directory_iterator(models_dir)) {
-                if (entry.path().extension() == ".glb") {
-                    std::string stem = entry.path().stem().string();
-                    if (stem.rfind("cos_", 0) == 0)
-                        model_names.push_back(stem);
-                }
+                if (entry.path().extension() == ".glb")
+                    model_names.push_back(entry.path().stem().string());
             }
-            std::sort(model_names.begin(), model_names.end());
+            std::sort(model_names.begin(), model_names.end(), [](const std::string& a, const std::string& b) {
+                char* ae; char* be;
+                long ai = std::strtol(a.c_str(), &ae, 10);
+                long bi = std::strtol(b.c_str(), &be, 10);
+                if (ae != a.c_str() && be != b.c_str()) return ai < bi;
+                return a < b;
+            });
         }
-        if (model_names.empty()) model_names.push_back("cos_000000");
+        if (model_names.empty()) model_names.push_back("0");
     }
 
     uint32_t anchor_texture_id() override { return 0; }
