@@ -7,10 +7,12 @@
 extern "C" void rlEnableDepthTest(void);
 extern "C" void rlDisableDepthTest(void);
 extern "C" void rlDrawRenderBatchActive(void);
+extern "C" void rlEnableBackfaceCulling(void);
+extern "C" void rlDisableBackfaceCulling(void);
+extern "C" void rlSetCullFace(int mode);
 extern "C" void glClear(unsigned int mask);
-extern "C" void glCullFace(unsigned int mode);
-static constexpr unsigned int GL_FRONT               = 0x0404;
-static constexpr unsigned int GL_BACK                = 0x0405;
+static constexpr int         RL_CULL_FACE_FRONT      = 0;
+static constexpr int         RL_CULL_FACE_BACK       = 1;
 static constexpr unsigned int GL_DEPTH_BUFFER_BIT    = 0x00000100;
 
 
@@ -374,9 +376,10 @@ void Chara3D::draw(float x, float y) {
     ray::SetShaderValue(outline_shader, thickness_loc, &outline_thickness, ray::SHADER_UNIFORM_FLOAT);
 
     rlDisableDepthTest();
-    glCullFace(GL_FRONT);
+    rlEnableBackfaceCulling();
+    rlSetCullFace(RL_CULL_FACE_FRONT);
     ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
-    glCullFace(GL_BACK);
+    rlSetCullFace(RL_CULL_FACE_BACK);
 
     for (int i = 0; i < cos_model.materialCount; i++)
         cos_model.materials[i].shader = saved_shaders[i];
@@ -387,5 +390,6 @@ void Chara3D::draw(float x, float y) {
     ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
 
     cos_model.transform = saved;
+    rlDisableBackfaceCulling();
     rlDisableDepthTest();
 }
