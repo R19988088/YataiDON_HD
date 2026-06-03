@@ -88,8 +88,8 @@ private:
     double last_frame_ms = 0;
 
     float scale = 650.0f;
-    float rot_x = 180.0f;
-    float rot_y = 20.0f;
+    float rot_x = 181.25f;
+    float rot_y = 27.5f;
     float rot_z = 0.0f;
 
     AnimIndex prev_anim_idx = AnimIndex::DON_BALLOON_FAILURE;
@@ -101,7 +101,14 @@ private:
     int fxaa_target_w = 0;
     int fxaa_target_h = 0;
 
+    ray::RenderTexture2D scene_target = {};
+    int scene_target_w = 0;
+    int scene_target_h = 0;
+
     ray::Shader outline_shader;
+    ray::Shader outline_pass_shader;
+    int outline_pass_size_loc = -1;
+    int outline_pass_thickness_loc = -1;
 
     void set_texture(fs::path& texture_path, int material_index);
     void load_face_textures(fs::path& face_dir);
