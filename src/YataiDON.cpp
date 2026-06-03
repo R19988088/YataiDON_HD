@@ -205,6 +205,7 @@ static void run_frame() {
     }
 
     update_camera_for_window_size(L.camera, L.screen_width, L.screen_height);
+    global_data.main_camera = L.camera;
 
     ray::BeginDrawing();
 

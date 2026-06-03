@@ -124,6 +124,8 @@ static std::unordered_map<std::string, int> parse_glb_material_indices(
 
 Chara3D::Chara3D(std::string& model_name, bool mirror) {
     outline_shader = ray::LoadShader("shader/outline.vs", "shader/outline.fs");
+    fxaa_shader    = ray::LoadShader("shader/dummy.vs",   "shader/fxaa.fs");
+    fxaa_size_loc  = ray::GetShaderLocation(fxaa_shader, "textureSize");
     this->mirror = mirror;
     fs::path root_path = fs::path("Skins") / global_data.config->paths.skin / "Models";
     fs::path model_path = root_path / "cos" / (model_name + ".glb");
@@ -175,6 +177,8 @@ Chara3D::~Chara3D() {
     ray::UnloadModelAnimations(anims, anim_count);
     ray::UnloadModel(cos_model);
     ray::UnloadShader(outline_shader);
+    ray::UnloadShader(fxaa_shader);
+    if (fxaa_target.id != 0) ray::UnloadRenderTexture(fxaa_target);
     for (auto& tex : face_textures)
         ray::UnloadTexture(tex);
 }
@@ -182,7 +186,9 @@ Chara3D::~Chara3D() {
 void Chara3D::set_texture(fs::path& texture_path, int material_index) {
     ray::Texture2D old = cos_model.materials[material_index].maps[ray::MATERIAL_MAP_DIFFUSE].texture;
     if (old.id != 0) ray::UnloadTexture(old);
-    ray::Texture2D tex = ray::LoadTexture(texture_path.string().c_str());
+    ray::Texture tex = ray::LoadTexture(texture_path.string().c_str());
+    ray::GenTextureMipmaps(&tex);
+    ray::SetTextureFilter(tex, ray::TEXTURE_FILTER_BILINEAR);
     int map_type = ray::MATERIAL_MAP_DIFFUSE;
     ray::SetMaterialTexture(&cos_model.materials[material_index], map_type, tex);
 }
@@ -357,7 +363,7 @@ void Chara3D::update(double current_ms) {
     }
 }
 
-void Chara3D::draw(float x, float y) {
+void Chara3D::draw_3d(float x, float y) {
     rlDrawRenderBatchActive();
     glClear(GL_DEPTH_BUFFER_BIT);
     rlEnableDepthTest();
@@ -392,4 +398,43 @@ void Chara3D::draw(float x, float y) {
     cos_model.transform = saved;
     rlDisableBackfaceCulling();
     rlDisableDepthTest();
+}
+
+void Chara3D::draw(float x, float y) {
+    int rw = ray::GetRenderWidth();
+    int rh = ray::GetRenderHeight();
+
+    if (fxaa_target.id == 0 || fxaa_target_w != rw || fxaa_target_h != rh) {
+        if (fxaa_target.id != 0) ray::UnloadRenderTexture(fxaa_target);
+        fxaa_target   = ray::LoadRenderTexture(rw, rh);
+        fxaa_target_w = rw;
+        fxaa_target_h = rh;
+        float ts[2] = {(float)rw, (float)rh};
+        ray::SetShaderValue(fxaa_shader, fxaa_size_loc, ts, ray::SHADER_UNIFORM_VEC2);
+    }
+
+    // Temporarily exit the caller's BeginMode3D so we can use BeginTextureMode.
+    // We re-enter at the end to keep the caller's EndMode3D balanced.
+    ray::EndMode3D();
+    ray::EndBlendMode();
+
+    ray::BeginTextureMode(fxaa_target);
+    ray::ClearBackground(ray::BLANK);
+    ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
+    ray::BeginMode3D(global_data.main_camera);
+    draw_3d(x, y);
+    ray::EndMode3D();
+    ray::EndBlendMode();
+    ray::EndTextureMode();
+
+    // Composite the FXAA-smoothed character onto the screen.
+    ray::BeginShaderMode(fxaa_shader);
+    ray::DrawTextureRec(fxaa_target.texture,
+        {0, 0, (float)rw, -(float)rh},
+        {0, 0}, ray::WHITE);
+    ray::EndShaderMode();
+
+    // Restore the outer rendering context for whoever called us.
+    ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
+    ray::BeginMode3D(global_data.main_camera);
 }
