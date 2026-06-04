@@ -216,22 +216,18 @@ jobs:
             ninja \
             pkg-config \
             ffmpeg \
+            sdl3 \
             dylibbundler
-
-      - name: Setup SDL3
-        id: sdl
-        uses: libsdl-org/setup-sdl@main
-        with:
-          version: 3-head
-          build-type: Release
 
       - name: Configure CMake
         run: |
+          export PKG_CONFIG_PATH="$(brew --prefix)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
           cmake -B build \
             -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=clang++ \
-            -DCMAKE_C_COMPILER=clang
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_PREFIX_PATH="$(brew --prefix)"
 
       - name: Build
         run: cmake --build build --config Release
