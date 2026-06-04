@@ -114,6 +114,10 @@ ScoresManager::ScoresManager(const fs::path& db_path) {
         sqlite3_free(errmsg);
     }
 
+    sqlite3_exec(db_fsd,
+        "INSERT OR IGNORE INTO players (player_id, username, title) VALUES (1, 'Don-chan', 'Donder Debut!');",
+        nullptr, nullptr, nullptr);
+
 }
 
 
@@ -149,7 +153,7 @@ void ScoresManager::py_taiko_import(const fs::path& old_db_path) {
 
     // Ensure default player exists
     sqlite3_exec(db_fsd,
-        "INSERT OR IGNORE INTO players (player_id, username) VALUES (1, 'Player 1');",
+        "INSERT OR IGNORE INTO players (player_id, username, title) VALUES (1, 'Don-chan', 'Donder Debut!');",
         nullptr, nullptr, nullptr);
 
     sqlite3_stmt* sel;
