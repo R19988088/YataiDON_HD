@@ -259,12 +259,13 @@ FumenParser::notes_to_position(int /*diff*/) {
 std::string FumenParser::get_diff_hash(int /*difficulty*/) {
     build_notes();
     if (cached_notes.notes.empty()) return "";
-    digestpp::md5 hasher;
+    std::vector<unsigned char> buffer;
     for (const Note& n : cached_notes.notes) {
         auto h = n.hash();
-        hasher.absorb(reinterpret_cast<const char*>(&h), sizeof(h));
+        const unsigned char* bytes = reinterpret_cast<const unsigned char*>(&h);
+        buffer.insert(buffer.end(), bytes, bytes + sizeof(h));
     }
-    return hasher.hexdigest();
+    return md5_hexdigest(buffer);
 }
 
 std::string FumenParser::get_song_hash() {

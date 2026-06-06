@@ -62,7 +62,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     raylib
-    digestpp
     tomlplusplus::tomlplusplus
     spdlog::spdlog
     lua::lua

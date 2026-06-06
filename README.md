@@ -96,7 +96,6 @@ Dependencies used in the project:
 - [libsndfile](https://github.com/libsndfile/libsndfile) - Library for reading and writing audio files.
 - [libsamplerate](https://github.com/libsndfile/libsamplerate) - Sample rate converter for audio.
 - [FFmpeg](https://ffmpeg.org/) - Complete, cross-platform multimedia framework.
-- [digestpp](https://github.com/kerukuro/digestpp) - C++11 header-only message digest library.
 - [PortAudio](http://www.portaudio.com/) - Cross-platform audio I/O library.
 - [miniz](https://github.com/richgel999/miniz) - Single-file ZIP/DEFLATE library.
 

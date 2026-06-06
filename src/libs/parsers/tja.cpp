@@ -1,6 +1,23 @@
 #include "tja.h"
 #include <random>
 
+std::string md5_hexdigest(const std::vector<unsigned char>& data) {
+    static const char hex_chars[] = "0123456789abcdef";
+    const unsigned char zero = 0;
+    const unsigned char* ptr = data.empty() ? &zero : data.data();
+    unsigned int* hash = ray::ComputeMD5(ptr, static_cast<int>(data.size()));
+
+    std::string result(32, '0');
+    for (int word = 0; word < 4; word++) {
+        for (int byte = 0; byte < 4; byte++) {
+            unsigned char b = (hash[word] >> (8 * byte)) & 0xFF;
+            result[(word * 4 + byte) * 2]     = hex_chars[b >> 4];
+            result[(word * 4 + byte) * 2 + 1] = hex_chars[b & 0xF];
+        }
+    }
+    return result;
+}
+
 double get_ms_per_measure(double bpm_val, double time_sig) {
     if (bpm_val == 0) return 0;
     return 60000 * (time_sig * 4) / bpm_val;
@@ -1430,19 +1447,24 @@ std::vector<std::pair<int, int>> find_streams(const std::deque<Note>& modded_not
 }
 
 std::string TJAParser::get_song_hash() {
-    digestpp::md5 hasher;
+    std::vector<unsigned char> buffer;
+    auto absorb = [&](const void* data, size_t size) {
+        const unsigned char* bytes = static_cast<const unsigned char*>(data);
+        buffer.insert(buffer.end(), bytes, bytes + size);
+    };
+
     for (const auto& [course, course_data] : metadata.course_data) {
         for (int diff = course; diff < 4; diff++) {
             auto [notes, branch_m, branch_e, branch_n] = notes_to_position(diff);
 
             auto absorb_notes = [&](const NoteList& note_list) {
                 for (const Note& note : note_list.notes) {
-                    hasher.absorb(reinterpret_cast<const char*>(&note.bpm), sizeof(note.bpm));
-                    hasher.absorb(reinterpret_cast<const char*>(&note.hit_ms), sizeof(note.hit_ms));
-                    hasher.absorb(reinterpret_cast<const char*>(&note.scroll_x), sizeof(note.scroll_x));
-                    hasher.absorb(reinterpret_cast<const char*>(&note.scroll_y), sizeof(note.scroll_y));
+                    absorb(&note.bpm, sizeof(note.bpm));
+                    absorb(&note.hit_ms, sizeof(note.hit_ms));
+                    absorb(&note.scroll_x, sizeof(note.scroll_x));
+                    absorb(&note.scroll_y, sizeof(note.scroll_y));
                     int t = static_cast<int>(note.type);
-                    hasher.absorb(reinterpret_cast<const char*>(&t), sizeof(t));
+                    absorb(&t, sizeof(t));
                 }
             };
 
@@ -1452,11 +1474,10 @@ std::string TJAParser::get_song_hash() {
             for (const NoteList& nl : branch_n) absorb_notes(nl);
         }
     }
-    return hasher.hexdigest();
+    return md5_hexdigest(buffer);
 }
 
 std::string TJAParser::get_diff_hash(int difficulty) {
-    digestpp::md5 hasher;
     auto [notes, branch_m, branch_e, branch_n] = notes_to_position(difficulty);
     auto total_notes = notes.notes.size();
     for (const NoteList& nl : branch_m) total_notes += nl.notes.size();
@@ -1466,14 +1487,20 @@ std::string TJAParser::get_diff_hash(int difficulty) {
     if (total_notes == 0)
         return "";
 
+    std::vector<unsigned char> buffer;
+    auto absorb = [&](const void* data, size_t size) {
+        const unsigned char* bytes = static_cast<const unsigned char*>(data);
+        buffer.insert(buffer.end(), bytes, bytes + size);
+    };
+
     auto absorb_notes = [&](const NoteList& note_list) {
         for (const Note& note : note_list.notes) {
-            hasher.absorb(reinterpret_cast<const char*>(&note.bpm), sizeof(note.bpm));
-            hasher.absorb(reinterpret_cast<const char*>(&note.hit_ms), sizeof(note.hit_ms));
-            hasher.absorb(reinterpret_cast<const char*>(&note.scroll_x), sizeof(note.scroll_x));
-            hasher.absorb(reinterpret_cast<const char*>(&note.scroll_y), sizeof(note.scroll_y));
+            absorb(&note.bpm, sizeof(note.bpm));
+            absorb(&note.hit_ms, sizeof(note.hit_ms));
+            absorb(&note.scroll_x, sizeof(note.scroll_x));
+            absorb(&note.scroll_y, sizeof(note.scroll_y));
             int t = static_cast<int>(note.type);
-            hasher.absorb(reinterpret_cast<const char*>(&t), sizeof(t));
+            absorb(&t, sizeof(t));
         }
     };
 
@@ -1481,5 +1508,5 @@ std::string TJAParser::get_diff_hash(int difficulty) {
     for (const NoteList& nl : branch_m) absorb_notes(nl);
     for (const NoteList& nl : branch_e) absorb_notes(nl);
     for (const NoteList& nl : branch_n) absorb_notes(nl);
-    return hasher.hexdigest();
+    return md5_hexdigest(buffer);
 }

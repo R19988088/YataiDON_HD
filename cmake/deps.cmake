@@ -246,15 +246,6 @@ else()
   message(STATUS "  libswresample ${SWRESAMPLE_VERSION}")
 endif()
 
-# digestpp
-FetchContent_Declare(
-    digestpp
-    GIT_REPOSITORY https://github.com/kerukuro/digestpp.git
-    GIT_TAG master
-    GIT_SHALLOW TRUE
-)
-FetchContent_MakeAvailable(digestpp)
-
 # PortAudio (local prebuilt library)
 if(WIN32)
   set(PORTAUDIO_LIB_NAME "libportaudio-win.a")
