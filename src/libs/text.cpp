@@ -424,7 +424,7 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(
                     float dy = draw_y + (char_height - (float)tmp.height) / 2.0f;
                     ray::Rectangle src = {0, 0, (float)tmp.width, (float)tmp.height};
                     ray::Rectangle dst = {dx, dy, (float)tmp.width, (float)tmp.height};
-                    ray::ImageDraw(target, tmp, src, dst, ray::WHITE);
+                    ray::ImageDrawImagePro(target, tmp, src, dst, {0, 0}, 0.0f, ray::WHITE);
                     ray::UnloadImage(tmp);
                 } else {
                     if (pass == 0) {
@@ -443,9 +443,9 @@ OutlinedText::BuildData OutlinedText::build_vertical_text(
         }
 
         if (pass == 0) {
-            ray::ImageDraw(&img, outline_img,
-                           {0, 0, (float)img_w, (float)img_h},
-                           {0, 0, (float)img_w, (float)img_h}, ray::WHITE);
+            ray::ImageDrawImagePro(&img, outline_img,
+                                  {0, 0, (float)img_w, (float)img_h},
+                                  {0, 0, (float)img_w, (float)img_h}, {0, 0}, 0.0f, ray::WHITE);
             ray::UnloadImage(outline_img);
         }
     }
