@@ -134,6 +134,8 @@ Chara3D::Chara3D(std::string& model_name, bool mirror) {
     fs::path model_path = root_path / "cos" / (model_name + ".glb");
     fs::path anim_path = root_path / "animations.glb";
     cos_model = ray::LoadModel(model_path.string().c_str());
+    model_valid = cos_model.meshCount > 0;
+    if (!model_valid) spdlog::warn("Chara3D: failed to load model '{}'", model_path.string());
     for (int m = 0; m < cos_model.meshCount; m++) {
         auto& mesh = cos_model.meshes[m];
         if (mesh.colors == nullptr) continue;
@@ -421,16 +423,35 @@ void Chara3D::draw_3d(float x, float y) {
 }
 
 void Chara3D::draw(float x, float y) {
+    if (!model_valid) return;
+
     int rw = ray::GetRenderWidth();
     int rh = ray::GetRenderHeight();
 
     if (scene_target.id == 0 || scene_target_w != rw || scene_target_h != rh) {
         if (scene_target.id != 0) ray::UnloadRenderTexture(scene_target);
         scene_target   = ray::LoadRenderTexture(rw, rh);
+        if (scene_target.id == 0) {
+            spdlog::warn("Chara3D: render texture unavailable, using direct render");
+            use_render_textures = false;
+        }
         scene_target_w = rw;
         scene_target_h = rh;
         float ts[2] = {(float)rw, (float)rh};
         ray::SetShaderValue(outline_pass_shader, outline_pass_size_loc, ts, ray::SHADER_UNIFORM_VEC2);
+    }
+
+    if (!use_render_textures) {
+        ray::Camera2D cam2d = compute_camera2d(tex.screen_width, tex.screen_height);
+        ray::Camera3D cam3d = camera2d_to_3d(cam2d);
+        ray::EndMode2D();
+        ray::EndBlendMode();
+        ray::BeginMode3D(cam3d);
+        draw_3d(x, y);
+        ray::EndMode3D();
+        ray::BeginBlendMode(ray::BLEND_CUSTOM_SEPARATE);
+        ray::BeginMode2D(cam2d);
+        return;
     }
 
     if (fxaa_target.id == 0 || fxaa_target_w != rw || fxaa_target_h != rh) {

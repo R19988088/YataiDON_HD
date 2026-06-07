@@ -62,7 +62,7 @@ static const int TOUCH_R_KAT = 40002;
 static const int TOUCH_L_DON = 40003;
 static const int TOUCH_R_DON = 40004;
 
-static std::unordered_map<int, int> touch_id_to_vkey;
+static std::unordered_map<SDL_FingerID, int> touch_id_to_vkey;
 
 static std::array<bool, 349> previous_key_states{};
 static std::array<bool, 18>  previous_gamepad_states{};
@@ -267,54 +267,39 @@ static int touch_quadrant_vkey(ray::Vector2 pos, int sw, int sh) {
     return left ? TOUCH_L_KAT : TOUCH_R_KAT;
 }
 
-void poll_touch_once() {
-    if (global_data.input_locked) return;
+static bool touch_watch_registered = false;
 
-    int sw = ray::GetScreenWidth();
-    int sh = ray::GetScreenHeight();
-    std::unordered_set<int> current_ids;
-    std::vector<int> local_pressed;
-    std::vector<int> local_released;
+static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
+    if (global_data.input_locked) return 1;
 
-    // Snapshot before update: used to guard gesture fallback against double-firing
-    bool had_active_touch = !touch_id_to_vkey.empty();
-
-    int touch_count = ray::GetTouchPointCount();
-    for (int i = 0; i < touch_count; i++) {
-        int id = ray::GetTouchPointId(i);
-        current_ids.insert(id);
-
+    if (event->type == SDL_EVENT_FINGER_DOWN) {
+        SDL_FingerID id = event->tfinger.fingerID;
         if (!touch_id_to_vkey.count(id)) {
-            ray::Vector2 pos = ray::GetTouchPosition(i);
+            int sw = ray::GetScreenWidth();
+            int sh = ray::GetScreenHeight();
+            ray::Vector2 pos = { event->tfinger.x * sw, event->tfinger.y * sh };
             int vkey = touch_quadrant_vkey(pos, sw, sh);
             touch_id_to_vkey[id] = vkey;
-            local_pressed.push_back(vkey);
+            std::lock_guard<std::mutex> lock(input_mutex);
+            pressed_keys.push_back(vkey);
+        }
+    } else if (event->type == SDL_EVENT_FINGER_UP ||
+               event->type == SDL_EVENT_FINGER_CANCELED) {
+        SDL_FingerID id = event->tfinger.fingerID;
+        auto it = touch_id_to_vkey.find(id);
+        if (it != touch_id_to_vkey.end()) {
+            std::lock_guard<std::mutex> lock(input_mutex);
+            released_keys.push_back(it->second);
+            touch_id_to_vkey.erase(it);
         }
     }
+    return 1;
+}
 
-    for (auto it = touch_id_to_vkey.begin(); it != touch_id_to_vkey.end();) {
-        if (!current_ids.count(it->first)) {
-            local_released.push_back(it->second);
-            it = touch_id_to_vkey.erase(it);
-        } else {
-            ++it;
-        }
-    }
-
-    // Fallback: catch quick taps that start+end within one frame (invisible to point tracking).
-    // Guard: skip if we had an active touch last frame — that means the gesture belongs
-    // to a slow tap we already caught via ID tracking, and firing again would double-press.
-    if (!had_active_touch && local_pressed.empty()) {
-        if (ray::IsGestureDetected(ray::GESTURE_TAP) || ray::IsGestureDetected(ray::GESTURE_DOUBLETAP)) {
-            ray::Vector2 pos = ray::GetTouchPosition(0);
-            local_pressed.push_back(touch_quadrant_vkey(pos, sw, sh));
-        }
-    }
-
-    if (!local_pressed.empty() || !local_released.empty()) {
-        std::lock_guard<std::mutex> lock(input_mutex);
-        pressed_keys.insert(pressed_keys.end(), local_pressed.begin(), local_pressed.end());
-        released_keys.insert(released_keys.end(), local_released.begin(), local_released.end());
+void poll_touch_once() {
+    if (!touch_watch_registered) {
+        SDL_AddEventWatch(touch_event_watch, nullptr);
+        touch_watch_registered = true;
     }
 }
 

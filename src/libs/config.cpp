@@ -348,7 +348,8 @@ void save_config(const Config& config) {
         {"song_limit", config.general.song_limit},
         {"webcam_number", config.general.webcam_number},
         {"player_1_id", config.general.player_1_id},
-        {"player_2_id", config.general.player_2_id}
+        {"player_2_id", config.general.player_2_id},
+        {"touch_input", config.general.touch_input}
     });
 
     // Paths

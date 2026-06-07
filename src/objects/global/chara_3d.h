@@ -94,6 +94,8 @@ private:
 
     AnimIndex prev_anim_idx = AnimIndex::DON_BALLOON_FAILURE;
     bool is_looping = true;
+    bool model_valid = false;
+    bool use_render_textures = true;
 
     ray::Shader fxaa_shader;
     int fxaa_size_loc = -1;
