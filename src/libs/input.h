@@ -25,6 +25,7 @@ bool check_key_released(int key);
 // Useful when changing screens or locking input
 void clear_input_buffers();
 void shutdown_sdl_joysticks();
+void android_set_keyboard_visible(bool visible);
 
 bool is_input_key_pressed(const std::vector<int>& keys, const std::vector<int>& gamepad_buttons);
 bool is_l_don_pressed(PlayerNum player_num = PlayerNum::ALL);

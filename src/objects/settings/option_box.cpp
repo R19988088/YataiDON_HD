@@ -1,5 +1,6 @@
 #include "option_box.h"
 #include "../../libs/animation.h"
+#include "../../libs/input.h"
 
 std::string getKeyString(int key_code);
 
@@ -201,6 +202,10 @@ void StrOptionBox::confirm() {
     config_ref.set_str(value);
 }
 
+bool StrOptionBox::needs_text_input() const {
+    return value_list.empty();
+}
+
 void StrOptionBox::update(double current_time) {
     flicker_fade->update(current_time);
     if (is_highlighted && value_list.empty()) {
@@ -211,6 +216,7 @@ void StrOptionBox::update(double current_time) {
             value = input_string;
             confirm();
             is_highlighted = false;
+            android_set_keyboard_visible(false);
         } else if (ray::IsKeyPressed(ray::KEY_V) && ray::IsKeyDown(ray::KEY_LEFT_CONTROL)) {
             input_string += ray::GetClipboardText();
             rebuild_text();

@@ -19,6 +19,7 @@ public:
                   const std::string& path);
 
     virtual void confirm() {}
+    virtual bool needs_text_input() const { return false; }
 
     virtual void update(double /*current_time*/) {}
     virtual void move_left()  {}
@@ -76,6 +77,7 @@ public:
                  const std::map<std::string,std::string>& values);
 
     void confirm()    override;
+    bool needs_text_input() const override;
     void update(double current_time) override;
     void move_left()  override;
     void move_right() override;

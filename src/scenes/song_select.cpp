@@ -157,10 +157,13 @@ std::optional<Screens> SongSelectScreen::update() {
 
     if (state != prev_state) {
         script->restart_text_fade();
+        if (prev_state == SongSelectState::SEARCHING)
+            android_set_keyboard_visible(false);
         if (state == SongSelectState::SONG_SELECTED) {
             diff_select_timer = std::make_unique<Timer>(60, current_time, [this]() { select_song((SongBox*)navigator.get_current_item()); });
         } else if (state == SongSelectState::SEARCHING) {
             search_box.emplace();
+            android_set_keyboard_visible(true);
         } else if (state == SongSelectState::DAN_SELECTED) {
             dan_transition.emplace();
             dan_transition->start();

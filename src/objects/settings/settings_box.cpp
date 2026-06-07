@@ -1,4 +1,5 @@
 #include "settings_box.h"
+#include "../../libs/input.h"
 
 std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Value& opt) {
     std::string type        = opt["type"].GetString();
@@ -138,6 +139,8 @@ void SettingsBox::move_option_right() {
 void SettingsBox::select_option() {
     if (options.empty()) return;
     options[option_index]->is_highlighted = !options[option_index]->is_highlighted;
+    if (options[option_index]->needs_text_input())
+        android_set_keyboard_visible(options[option_index]->is_highlighted);
     options[option_index]->confirm();
 }
 

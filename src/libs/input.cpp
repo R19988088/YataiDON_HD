@@ -6,6 +6,13 @@
 #include <windows.h>
 #endif
 
+#ifdef PLATFORM_ANDROID
+#include <jni.h>
+#include <android_native_app_glue.h>
+struct android_app;
+extern "C" struct android_app* GetAndroidApp(void);
+#endif
+
 #include <SDL3/SDL.h>
 std::atomic<bool> input_thread_running{true};
 std::thread input_thread;
@@ -330,6 +337,16 @@ void poll_keyboard_once() {
     }
 #endif
 
+#ifdef PLATFORM_ANDROID
+    {
+        bool cur  = ray::IsKeyDown(ray::KEY_BACK);
+        bool prev = previous_key_states[ray::KEY_BACK];
+        if (cur  && !prev) local_pressed.push_back(ray::KEY_BACK);
+        if (!cur && prev)  local_released.push_back(ray::KEY_BACK);
+        previous_key_states[ray::KEY_BACK] = cur;
+    }
+#endif
+
     for (int gamepad = 0; gamepad < 4; gamepad++) {
         if (!ray::IsGamepadAvailable(gamepad)) continue;
         for (int btn = 1; btn <= 17; btn++) {
@@ -424,3 +441,45 @@ void shutdown_sdl_joysticks() {
     }
     sdl_joysticks.clear();
 }
+
+#ifdef PLATFORM_ANDROID
+void android_set_keyboard_visible(bool visible) {
+    struct android_app* app = GetAndroidApp();
+    if (!app) return;
+
+    ANativeActivity* activity = app->activity;
+    JavaVM* vm = activity->vm;
+    JNIEnv* env = nullptr;
+    vm->AttachCurrentThread(&env, nullptr);
+
+    jclass activity_class = env->GetObjectClass(activity->clazz);
+
+    jmethodID get_window = env->GetMethodID(activity_class, "getWindow", "()Landroid/view/Window;");
+    jobject window = env->CallObjectMethod(activity->clazz, get_window);
+    jclass window_class = env->GetObjectClass(window);
+    jmethodID get_decor = env->GetMethodID(window_class, "getDecorView", "()Landroid/view/View;");
+    jobject decor_view = env->CallObjectMethod(window, get_decor);
+
+    jclass context_class = env->FindClass("android/content/Context");
+    jfieldID imm_field = env->GetStaticFieldID(context_class, "INPUT_METHOD_SERVICE", "Ljava/lang/String;");
+    jstring imm_service = (jstring)env->GetStaticObjectField(context_class, imm_field);
+    jmethodID get_service = env->GetMethodID(activity_class, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;");
+    jobject imm = env->CallObjectMethod(activity->clazz, get_service, imm_service);
+    jclass imm_class = env->GetObjectClass(imm);
+
+    if (visible) {
+        jmethodID show = env->GetMethodID(imm_class, "showSoftInput", "(Landroid/view/View;I)Z");
+        env->CallBooleanMethod(imm, show, decor_view, 0);
+    } else {
+        jclass view_class = env->GetObjectClass(decor_view);
+        jmethodID get_token = env->GetMethodID(view_class, "getWindowToken", "()Landroid/os/IBinder;");
+        jobject binder = env->CallObjectMethod(decor_view, get_token);
+        jmethodID hide = env->GetMethodID(imm_class, "hideSoftInputFromWindow", "(Landroid/os/IBinder;I)Z");
+        env->CallBooleanMethod(imm, hide, binder, 0);
+    }
+
+    vm->DetachCurrentThread();
+}
+#else
+void android_set_keyboard_visible(bool /*visible*/) {}
+#endif

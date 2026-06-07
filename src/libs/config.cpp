@@ -235,6 +235,9 @@ Config get_config() {
         config.keys.borderless_key = getKeyCode((*keys)["borderless_key"].value_or("f10"));
         config.keys.pause_key = getKeyCode((*keys)["pause_key"].value_or("p"));
         config.keys.back_key = getKeyCode((*keys)["back_key"].value_or("escape"));
+#ifdef PLATFORM_ANDROID
+        config.keys.back_key = ray::KEY_BACK;
+#endif
         config.keys.restart_key = getKeyCode((*keys)["restart_key"].value_or("r"));
     }
 
