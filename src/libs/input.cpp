@@ -273,6 +273,19 @@ static bool touch_watch_registered = false;
 static bool SDLCALL touch_event_watch(void* /*userdata*/, SDL_Event* event) {
     if (global_data.input_locked) return 1;
 
+    if (event->type == SDL_EVENT_KEY_DOWN &&
+        event->key.scancode == SDL_SCANCODE_AC_BACK) {
+        std::lock_guard<std::mutex> lock(input_mutex);
+        pressed_keys.push_back(ray::KEY_ESCAPE);
+        return 0;
+    }
+    if (event->type == SDL_EVENT_KEY_UP &&
+        event->key.scancode == SDL_SCANCODE_AC_BACK) {
+        std::lock_guard<std::mutex> lock(input_mutex);
+        released_keys.push_back(ray::KEY_ESCAPE);
+        return 0;
+    }
+
     if (event->type == SDL_EVENT_FINGER_DOWN) {
         SDL_FingerID id = event->tfinger.fingerID;
         if (!touch_id_to_vkey.count(id)) {
@@ -328,16 +341,6 @@ void poll_keyboard_once() {
         if (current_state  && !previous_state) local_pressed.push_back(key);
         if (!current_state && previous_state)  local_released.push_back(key);
         previous_key_states[key] = current_state;
-    }
-#endif
-
-#ifdef PLATFORM_ANDROID
-    {
-        bool cur  = ray::IsKeyDown(ray::KEY_BACK);
-        bool prev = previous_key_states[ray::KEY_BACK];
-        if (cur  && !prev) local_pressed.push_back(ray::KEY_BACK);
-        if (!cur && prev)  local_released.push_back(ray::KEY_BACK);
-        previous_key_states[ray::KEY_BACK] = cur;
     }
 #endif
 
@@ -443,10 +446,14 @@ void android_set_keyboard_visible(bool visible) {
     if (!windows || count == 0) return;
     SDL_Window* win = windows[0];
     SDL_free(windows);
-    if (visible)
+    if (visible) {
+        SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "1");
         SDL_StartTextInput(win);
-    else
+    } else {
         SDL_StopTextInput(win);
+        SDL_SetHint(SDL_HINT_ENABLE_SCREEN_KEYBOARD, "0");
+        SDL_StartTextInput(win);
+    }
 #else
     (void)visible;
 #endif
