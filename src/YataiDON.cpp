@@ -2,6 +2,7 @@
 #include <rlgl.h>
 #ifdef PLATFORM_ANDROID
 #include <SDL3/SDL_main.h>
+#include <SDL3/SDL.h>
 #endif
 
 #include "libs/audio.h"
@@ -240,6 +241,9 @@ int main(int argc, char* argv[]) {
 
     tex.init(root_skin_path / "Graphics");
 
+#ifdef PLATFORM_ANDROID
+    SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+#endif
     ray::InitWindow(tex.screen_width, tex.screen_height, "YataiDON");
 
     global_tex.init(root_skin_path / "Graphics");
@@ -302,7 +306,11 @@ int main(int argc, char* argv[]) {
     }
 
     rlSetBlendFactorsSeparate(RL_SRC_ALPHA, RL_ONE_MINUS_SRC_ALPHA, RL_ONE, RL_ONE_MINUS_SRC_ALPHA, RL_FUNC_ADD, RL_FUNC_ADD);
+#ifdef PLATFORM_ANDROID
+    ray::SetExitKey(ray::KEY_NULL);
+#else
     ray::SetExitKey(global_data.config->keys.exit_key);
+#endif
     ray::HideCursor();
 
     input_thread = std::thread(input_polling_thread);

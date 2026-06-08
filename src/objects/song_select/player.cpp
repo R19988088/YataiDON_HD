@@ -182,6 +182,12 @@ std::optional<std::string> SongSelectPlayer::handle_input_search() {
 
     int key = ray::GetCharPressed();
     while (key > 0) {
+        if (key == '\n' || key == '\r') {
+            std::string result = search_string;
+            search_string = "";
+            clear_input_buffers();
+            return result;
+        }
         search_string += (char)key;
         key = ray::GetCharPressed();
     }

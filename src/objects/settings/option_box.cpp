@@ -222,7 +222,12 @@ void StrOptionBox::update(double current_time) {
             rebuild_text();
         }
         int key = ray::GetCharPressed();
-        if (key > 0) {
+        if (key == '\n' || key == '\r') {
+            value = input_string;
+            confirm();
+            is_highlighted = false;
+            android_set_keyboard_visible(false);
+        } else if (key > 0) {
             input_string += static_cast<char>(key);
             rebuild_text();
         }
