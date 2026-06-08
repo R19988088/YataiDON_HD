@@ -243,6 +243,7 @@ int main(int argc, char* argv[]) {
 
 #ifdef PLATFORM_ANDROID
     SDL_SetHint(SDL_HINT_ANDROID_TRAP_BACK_BUTTON, "1");
+    SDL_SetHint(SDL_HINT_ORIENTATIONS, "LandscapeLeft LandscapeRight");
 #endif
     ray::InitWindow(tex.screen_width, tex.screen_height, "YataiDON");
 
