@@ -260,12 +260,18 @@ static int touch_quadrant_vkey(ray::Vector2 pos, int sw, int sh) {
     bool top  = pos.y < sh / 2.0f;
     if (top) return left ? TOUCH_L_KAT : TOUCH_R_KAT;
 
-    float cx = sw * 0.5f;
+    float cx = sw * 0.500f;
     float cy = (float)sh;
-    float r  = sw * 0.266f;
+
+    float rx = sw * 0.262f;
+    float ry = sw * 0.242f;
+
     float dx = pos.x - cx;
     float dy = pos.y - cy;
-    bool in_drum = (dx * dx + dy * dy) <= r * r;
+
+    float nx = dx / rx;
+    float ny = dy / ry;
+    bool in_drum = (nx * nx + ny * ny) <= 1.0f;
     if (in_drum) return left ? TOUCH_L_DON : TOUCH_R_DON;
     return left ? TOUCH_L_KAT : TOUCH_R_KAT;
 }
