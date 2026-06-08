@@ -202,7 +202,12 @@ static void run_frame() {
         if (touch_drum_pressed.exchange(false, std::memory_order_relaxed))
             L.touch_drum_resize->restart();
         L.touch_drum_resize->update(get_current_ms());
-        global_tex.draw_texture(OVERLAY::TOUCH_DRUM, {.scale=(float)L.touch_drum_resize->attribute, .center=true, .fade = 0.5f});
+        const float scale = (float)L.touch_drum_resize->attribute;
+        float y_fix = 0.0f;
+        auto drum_it = global_tex.textures.find(OVERLAY::TOUCH_DRUM);
+        if (drum_it != global_tex.textures.end())
+            y_fix = drum_it->second->height * 0.5f * (1.0f - scale);
+        global_tex.draw_texture(OVERLAY::TOUCH_DRUM, {.scale=scale, .center=true, .y=y_fix, .fade=0.5f});
     }
 
     if (global_data.config->general.fps_counter) {
