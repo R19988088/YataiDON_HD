@@ -20,6 +20,7 @@ public:
     double start_ms;
     double ms_from_start;
     double start_delay;
+    double last_resync_ms;
     bool song_started;
     bool paused;
     bool score_saved;

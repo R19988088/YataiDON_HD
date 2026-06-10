@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 #endif
 
+#include "libs/animation.h"
 #include "libs/audio.h"
 #include "libs/global_data.h"
 #include "libs/filesystem.h"
@@ -146,16 +147,20 @@ struct LoopState {
     ray::Camera2D camera   = {};
     int screen_width       = 0;
     int screen_height      = 0;
-    std::chrono::duration<double> target_duration = std::chrono::duration<double>(1.0 / 60.0);
+    std::chrono::steady_clock::duration target_duration = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / 60.0));
+    std::chrono::time_point<std::chrono::steady_clock> next_frame_time = std::chrono::steady_clock::now();
     FPSCounter fps_counter;
     ray::Color last_color = ray::BLACK;
     TextureResizeAnimation* touch_drum_resize = nullptr;
 };
 
 static LoopState* g_loop = nullptr;
+double g_frame_ms = 0.0;
 
 static void run_frame() {
     LoopState& L = *g_loop;
+
+    g_frame_ms = get_current_ms();
 
     ray::PollInputEvents();
     if (global_data.config->general.touch_input)
@@ -225,10 +230,17 @@ static void run_frame() {
         ray::SwapScreenBuffer();
     }
 
-    auto elapsed   = std::chrono::steady_clock::now() - frame_start;
-    auto remaining = L.target_duration - elapsed;
-    if (remaining > std::chrono::duration<double>::zero()) {
-        std::this_thread::sleep_for(remaining);
+    if (L.target_duration.count() > 0) {
+        L.next_frame_time += L.target_duration;
+        auto now = std::chrono::steady_clock::now();
+        if (L.next_frame_time < now) {
+            L.next_frame_time = now;
+        }
+        auto spin_start = L.next_frame_time - std::chrono::microseconds(500);
+        if (spin_start > now) {
+            std::this_thread::sleep_until(spin_start);
+        }
+        while (std::chrono::steady_clock::now() < L.next_frame_time) { }
     }
 }
 
@@ -282,7 +294,7 @@ int main(int argc, char* argv[]) {
     L.screen_width       = tex.screen_width;
     L.screen_height      = tex.screen_height;
     L.current_screen     = initial_screen;
-    L.target_duration    = std::chrono::duration<double>(1.0 / target_fps);
+    L.target_duration    = std::chrono::duration_cast<std::chrono::steady_clock::duration>(std::chrono::duration<double>(1.0 / target_fps));
     L.touch_drum_resize  = (TextureResizeAnimation*)global_tex.get_animation(66);
     L.touch_drum_resize->start();
 
@@ -327,6 +339,7 @@ int main(int argc, char* argv[]) {
 
     input_thread = std::thread(input_polling_thread);
 
+    L.next_frame_time = std::chrono::steady_clock::now();
     while (!ray::WindowShouldClose()) {
         run_frame();
     }

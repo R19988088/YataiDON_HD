@@ -9,8 +9,15 @@
 inline double get_current_ms() {
     using namespace std::chrono;
     auto now = high_resolution_clock::now();
-    auto ms = duration_cast<milliseconds>(now.time_since_epoch()).count();
-    return static_cast<double>(ms);
+    return duration<double, std::milli>(now.time_since_epoch()).count();
+}
+
+extern double g_frame_ms;
+
+// Returns time frozen at frame start — use this for game/note position calculations
+// so render-time variance doesn't cause jitter.
+inline double get_frame_ms() {
+    return (g_frame_ms > 0.0) ? g_frame_ms : get_current_ms();
 }
 
 class BaseAnimation {

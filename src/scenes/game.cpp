@@ -7,6 +7,7 @@ void GameScreen::on_screen_start() {
     ms_from_start = 0;
     start_ms = 0;
     start_delay = 1000.0f;
+    last_resync_ms = 0;
     JudgePos::X = 414 * tex.screen_scale;
     JudgePos::Y = 256 * tex.screen_scale;
     song_started = false;
@@ -252,8 +253,11 @@ void GameScreen::resync_song(double current_ms) {
         spdlog::debug("Hard resyncing chart from {} to {}", ms_from_start, audio_ms_adjusted);
         ms_from_start = audio_ms_adjusted;
     } else if (std::abs(drift) > 5.0) {
-        ms_from_start += drift * 0.5;
+        double frame_delta = (last_resync_ms > 0.0) ? (current_ms - last_resync_ms) : 16.667;
+        double correction_rate = std::min(frame_delta / 16.667, 4.0);
+        ms_from_start += drift * 0.5 * correction_rate;
     }
+    last_resync_ms = current_ms;
     start_ms = current_ms - ms_from_start;
 }
 
@@ -280,7 +284,7 @@ void GameScreen::end_song() {
 std::optional<Screens> GameScreen::update() {
     Screen::update();
 
-    double current_ms = get_current_ms();
+    double current_ms = get_frame_ms();
     if (!paused)
         ms_from_start = current_ms - start_ms;
 
