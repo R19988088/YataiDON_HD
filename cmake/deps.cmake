@@ -278,7 +278,7 @@ endif()
 if(WIN32)
   FetchContent_Declare(
         ffmpeg_prebuilt
-        URL https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-10-17-02/ffmpeg-N-124941-g54749da98a-win64-gpl.zip
+        URL https://github.com/BtbN/FFmpeg-Builds/releases/download/autobuild-2026-06-09-15-17/ffmpeg-n7.1.4-9-gc06af95f12-win64-gpl-shared-7.1.zip
     )
   FetchContent_MakeAvailable(ffmpeg_prebuilt)
 
