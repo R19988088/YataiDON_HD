@@ -360,36 +360,37 @@ void Chara3D::update(double current_ms) {
         double ms_per_frame = ms_per_beat / anims[ai].keyframeCount;
         if (current_ms - last_frame_ms >= ms_per_frame) {
             int loop_frames = anims[ai].keyframeCount - 1;
-            anim_frame = (anim_frame + 1) % loop_frames;
-            ray::UpdateModelAnimation(cos_model, anims[ai], anim_frame);
-            // Push updated vertex/normal/uv buffers to GPU after animation update.
-            for (int m = 0; m < cos_model.meshCount; m++) {
-                auto& mesh = cos_model.meshes[m];
-                if (mesh.vertexCount <= 0) continue;
-                // Vertex positions (location 0)
-                if (mesh.animVertices != nullptr)
-                    ray::UpdateMeshBuffer(mesh, 0, mesh.animVertices, mesh.vertexCount * 3 * sizeof(float), 0);
-                else if (mesh.vertices != nullptr)
-                    ray::UpdateMeshBuffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * sizeof(float), 0);
-
-                // Normals (location 2)
-                if (mesh.animNormals != nullptr)
-                    ray::UpdateMeshBuffer(mesh, 2, mesh.animNormals, mesh.vertexCount * 3 * sizeof(float), 0);
-                else if (mesh.normals != nullptr)
-                    ray::UpdateMeshBuffer(mesh, 2, mesh.normals, mesh.vertexCount * 3 * sizeof(float), 0);
-
-                // UVs (primary texcoords: location 1)
-                if (mesh.texcoords != nullptr)
-                    ray::UpdateMeshBuffer(mesh, 1, mesh.texcoords, mesh.vertexCount * 2 * sizeof(float), 0);
-                // secondary texcoords (location 5)
-                if (mesh.texcoords2 != nullptr)
-                    ray::UpdateMeshBuffer(mesh, 5, mesh.texcoords2, mesh.vertexCount * 2 * sizeof(float), 0);
-            }
             last_frame_ms = current_ms;
 
-            if (!is_looping && anim_frame == loop_frames - 1) {
-                set_anim(prev_anim_idx);
-                is_looping = true;
+            if (loop_frames <= 0) {
+                if (!is_looping) {
+                    set_anim(prev_anim_idx);
+                    is_looping = true;
+                }
+            } else {
+                anim_frame = (anim_frame + 1) % loop_frames;
+                ray::UpdateModelAnimation(cos_model, anims[ai], anim_frame);
+                for (int m = 0; m < cos_model.meshCount; m++) {
+                    auto& mesh = cos_model.meshes[m];
+                    if (mesh.vertexCount <= 0) continue;
+                    if (mesh.animVertices != nullptr)
+                        ray::UpdateMeshBuffer(mesh, 0, mesh.animVertices, mesh.vertexCount * 3 * sizeof(float), 0);
+                    else if (mesh.vertices != nullptr)
+                        ray::UpdateMeshBuffer(mesh, 0, mesh.vertices, mesh.vertexCount * 3 * sizeof(float), 0);
+                    if (mesh.animNormals != nullptr)
+                        ray::UpdateMeshBuffer(mesh, 2, mesh.animNormals, mesh.vertexCount * 3 * sizeof(float), 0);
+                    else if (mesh.normals != nullptr)
+                        ray::UpdateMeshBuffer(mesh, 2, mesh.normals, mesh.vertexCount * 3 * sizeof(float), 0);
+                    if (mesh.texcoords != nullptr)
+                        ray::UpdateMeshBuffer(mesh, 1, mesh.texcoords, mesh.vertexCount * 2 * sizeof(float), 0);
+                    if (mesh.texcoords2 != nullptr)
+                        ray::UpdateMeshBuffer(mesh, 5, mesh.texcoords2, mesh.vertexCount * 2 * sizeof(float), 0);
+                }
+
+                if (!is_looping && anim_frame == loop_frames - 1) {
+                    set_anim(prev_anim_idx);
+                    is_looping = true;
+                }
             }
         }
     }
