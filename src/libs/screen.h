@@ -125,8 +125,18 @@ protected:
     std::optional<Screens> _do_screen_start() {
         if (!screen_init) {
             screen_init = true;
-            on_screen_start();
-            spdlog::info("{} initialized", screen_name);
+            try {
+                on_screen_start();
+                spdlog::info("{} initialized", screen_name);
+            } catch (const std::exception& e) {
+                spdlog::critical("{} failed to initialize: {}", screen_name, e.what());
+                screen_init = false;
+                return Screens::SONG_SELECT;
+            } catch (...) {
+                spdlog::critical("{} failed to initialize: unknown exception", screen_name);
+                screen_init = false;
+                return Screens::SONG_SELECT;
+            }
         }
         return std::nullopt;
     }
