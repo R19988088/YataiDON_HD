@@ -25,4 +25,6 @@ public:
     void update(double current_ms);
 
     void draw(CrownType crown_type);
+
+    bool is_settled() const { return resize_fix->is_finished; }
 };

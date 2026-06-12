@@ -6,6 +6,7 @@
 #include "bottom_characters.h"
 #include "gauge.h"
 #include "result_crown.h"
+#include "result_crown_message.h"
 #include "high_score_indicator.h"
 #include "score_animator.h"
 
@@ -36,6 +37,7 @@ private:
     BottomCharacters bottom_characters;
     std::optional<ResultGauge> gauge;
     std::optional<ResultCrown> crown;
+    std::optional<ResultCrownMessage> crown_message;
     std::optional<HighScoreIndicator> high_score_indicator;
     std::optional<ScoreAnimator> score_animator;
     CrownType crown_type;

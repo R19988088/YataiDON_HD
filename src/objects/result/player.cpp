@@ -90,6 +90,7 @@ void ResultPlayer::update_score_animation(double current_ms, bool is_skipped) {
         SessionData& session_data = global_data.session_data[(int)player_num];
         if (session_data.result_data.score > session_data.result_data.prev_score) {
             high_score_indicator = HighScoreIndicator(session_data.result_data.prev_score, session_data.result_data.score, is_2p);
+            audio.play_sound("high_score_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
         }
     }
 }
@@ -107,6 +108,28 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
     if (bottom_characters.is_finished() && !crown.has_value()) {
         if (gauge.has_value() && gauge->is_clear()) {
             crown.emplace(ResultCrown(is_2p));
+            if (crown_type == CrownType::CROWN_FC || crown_type == CrownType::CROWN_DFC) {
+                audio.play_sound("full_combo_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
+            }
+        } else if (gauge.has_value() && !crown_message.has_value()) {
+            float gl = global_data.session_data[(int)player_num].result_data.gauge_length;
+            int frame = (gl < 87.0f / 2.0f) ? 0 : 1;
+            crown_message.emplace(frame, is_2p);
+            if (frame == 0) {
+                audio.play_sound("max_fail_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
+            } else {
+                audio.play_sound("fail_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
+            }
+        }
+    }
+    if (crown.has_value() && crown->is_settled() && !crown_message.has_value()) {
+        ResultState st = gauge.has_value() ? gauge->get_state() : ResultState::FAIL;
+        int frame = (st == ResultState::RAINBOW) ? 3 : 2;
+        crown_message.emplace(frame, is_2p);
+        if (frame == 2) {
+            audio.play_sound("clear_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
+        } else {
+            audio.play_sound("max_clear_voice_" + std::to_string((int)player_num) + "p", VolumePreset::VOICE);
         }
     }
     if (high_score_indicator.has_value()) {
@@ -127,6 +150,7 @@ void ResultPlayer::update(double current_ms, bool fade_in_finished, bool is_skip
         }
     }
     if (crown.has_value()) crown->update(current_ms);
+    if (crown_message.has_value()) crown_message->update(current_ms);
     chara->update(current_ms);
 }
 
@@ -212,6 +236,7 @@ void ResultPlayer::draw() {
     draw_total_score();
 
     if (crown.has_value()) crown->draw(crown_type);
+    if (crown_message.has_value()) crown_message->draw();
 
     draw_modifiers();
 
