@@ -65,6 +65,7 @@ public:
     int get_score() const { return score; }
     int get_max_combo() const { return max_combo; }
     int get_total_drumroll() const { return total_drumroll; }
+    int get_scissor_x() const { return virtual_to_screen_x(static_cast<float>(tex.textures[lane_cover_tex_id]->x2[0])); }
     void set_is_dan(bool v) { is_dan = v; }
 
     void reload_for_dan(std::optional<SongParser>& new_parser, int new_difficulty);
@@ -81,6 +82,10 @@ public:
 
     void draw_overlays(float y, const ray::Shader& mask_shader);
     void draw_lane_cover(float y);
+
+protected:
+    std::optional<LaneHitEffect> lane_hit_effect;
+    std::vector<std::unique_ptr<DrumHitEffect>> draw_drum_hit_list;
 
 private:
     bool is_2p;
@@ -153,8 +158,6 @@ private:
     TexID note_tex_ids[10];
 
     std::vector<Judgment> draw_judge_list;
-    std::optional<LaneHitEffect> lane_hit_effect;
-    std::vector<DrumHitEffect> draw_drum_hit_list;
     std::vector<GaugeHitEffect> gauge_hit_effect;
     std::vector<NoteArc> draw_arc_list;
     Combo combo_display;
@@ -219,7 +222,7 @@ private:
 
     void kusudama_counter_manager(double current_ms);
 
-    void spawn_hit_effects(DrumType drum_type, Side side);
+    virtual void spawn_hit_effects(DrumType drum_type, Side side);
 
     void handle_input(double ms_from_start, double current_ms, std::optional<Background>& background);
 

@@ -116,6 +116,7 @@ public:
     bool is_sound_playing(const std::string& name);
     void  set_sound_volume(const std::string& name, float volume);
     void  set_sound_pan(const std::string& name,   float pan);
+    void  set_sound_pitch(const std::string& name, float pitch);
     float get_sound_time_played(const std::string& name) const;
     void  seek_sound(const std::string& name, float position);
 

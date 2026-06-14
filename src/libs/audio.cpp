@@ -178,51 +178,45 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
         const float pan    = std::atomic_ref<float>(snd.pan).load(std::memory_order_relaxed);
         unsigned int frame = aref_frame.load(std::memory_order_relaxed);
 
+        const float pitch    = std::atomic_ref<float>(snd.pitch).load(std::memory_order_relaxed);
+        const float* data_ptr = snd.data;
+        const unsigned int channels = snd.channels;
+
         unsigned long frames_to_process = framesPerBuffer;
         unsigned long output_index = 0;
         bool still_playing = true;
+        float frame_f = (float)frame;
 
         while (frames_to_process > 0 && still_playing) {
-            if (frame >= snd.frame_count) {
-                if (snd.loop) {
-                    frame = 0;
-                } else {
-                    still_playing = false;
-                    break;
-                }
+            unsigned long src_frame = (unsigned long)frame_f;
+            if (src_frame >= snd.frame_count) {
+                if (snd.loop) { frame_f = 0.0f; continue; }
+                else { still_playing = false; break; }
             }
 
-            unsigned long frames_available = snd.frame_count - frame;
-            unsigned long frames_to_read = (frames_to_process < frames_available) ? frames_to_process : frames_available;
+            unsigned long src_index = src_frame * channels;
+            unsigned long dst_index = output_index * 2;
+            float left, right;
 
-            const float* data_ptr = snd.data;
-            const unsigned int channels = snd.channels;
-
-            for (unsigned long i = 0; i < frames_to_read; i++) {
-                unsigned long src_index = (frame + i) * channels;
-                unsigned long dst_index = (output_index + i) * 2;
-
-                float left, right;
-
-                if (channels == 1) {
-                    float sample = data_ptr[src_index];
-                    left  = sample * (1.0f - pan);
-                    right = sample * pan;
-                } else {
-                    left  = data_ptr[src_index];
-                    right = data_ptr[src_index + 1];
-                    if (pan < 0.5f)      right *= (pan * 2.0f);
-                    else if (pan > 0.5f) left  *= ((1.0f - pan) * 2.0f);
-                }
-
-                out[dst_index]     += left * volume;
-                out[dst_index + 1] += right * volume;
+            if (channels == 1) {
+                float sample = data_ptr[src_index];
+                left  = sample * (1.0f - pan);
+                right = sample * pan;
+            } else {
+                left  = data_ptr[src_index];
+                right = data_ptr[src_index + 1];
+                if (pan < 0.5f)      right *= (pan * 2.0f);
+                else if (pan > 0.5f) left  *= ((1.0f - pan) * 2.0f);
             }
 
-            frame             += frames_to_read;
-            output_index      += frames_to_read;
-            frames_to_process -= frames_to_read;
+            out[dst_index]     += left * volume;
+            out[dst_index + 1] += right * volume;
+
+            frame_f += pitch;
+            output_index++;
+            frames_to_process--;
         }
+        frame = (unsigned int)frame_f;
 
         aref_frame.store(frame, std::memory_order_relaxed);
         if (!still_playing)
@@ -809,6 +803,16 @@ void AudioEngine::set_sound_pan(const std::string& name, float pan) {
     auto it = sounds.find(name);
     if (it != sounds.end()) {
         std::atomic_ref<float>(it->second.pan).store(std::clamp(pan, 0.0f, 1.0f), std::memory_order_relaxed);
+    } else {
+        spdlog::warn("Sound {} not found", name);
+    }
+}
+
+void AudioEngine::set_sound_pitch(const std::string& name, float pitch) {
+    std::shared_lock<std::shared_mutex> guard(rw_lock);
+    auto it = sounds.find(name);
+    if (it != sounds.end()) {
+        std::atomic_ref<float>(it->second.pitch).store(pitch, std::memory_order_relaxed);
     } else {
         spdlog::warn("Sound {} not found", name);
     }

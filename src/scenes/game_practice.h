@@ -1,6 +1,24 @@
 #pragma once
 #include "game.h"
 
+class PracticeDrumHitEffect : public DrumHitEffect {
+    int player_index;
+public:
+    PracticeDrumHitEffect(DrumType type, Side side, int player_index)
+        : DrumHitEffect(type, side), player_index(player_index) {}
+
+    void draw(float y) override {
+        if (type == DrumType::DON) {
+            tex.draw_texture(PRACTICE::LARGE_DRUM_DON, {.fade = fade->attribute, .index = player_index});
+        } else if (type == DrumType::KAT) {
+            if (side == Side::LEFT)
+                tex.draw_texture(PRACTICE::LARGE_DRUM_KAT_L, {.fade = fade->attribute, .index = player_index});
+            else if (side == Side::RIGHT)
+                tex.draw_texture(PRACTICE::LARGE_DRUM_KAT_R, {.fade = fade->attribute, .index = player_index});
+        }
+    }
+};
+
 class PracticePlayer : public Player {
 public:
     bool paused = false;
@@ -10,6 +28,16 @@ public:
         : Player(parser_ref, player_num_param, difficulty_param, is_2p_param, modifiers_param) {
         gauge.reset();
         judge_counter = JudgeCounter();
+    }
+
+    void spawn_hit_effects(DrumType drum_type, Side side) {
+        lane_hit_effect = LaneHitEffect(drum_type, Judgments::BAD); //judgment parameter workaround
+        draw_drum_hit_list.push_back(std::make_unique<DrumHitEffect>(drum_type, side));
+        spawn_scrobble_effect(drum_type, side, (int)player_num - 1);
+    }
+
+    void spawn_scrobble_effect(DrumType drum_type, Side side, int player_index) {
+        draw_drum_hit_list.push_back(std::make_unique<PracticeDrumHitEffect>(drum_type, side, player_index));
     }
 };
 
@@ -33,6 +61,17 @@ private:
     std::vector<Note> bars;
     std::vector<Note> scrobble_note_list;
     std::vector<double> markers;
+
+    int song_speed = 10;
+
+    TextureResizeAnimation* pause_don_anim;
+    TextureResizeAnimation* pause_kat_anim;
+    TextureResizeAnimation* resume_don_anim;
+    TextureResizeAnimation* skip_l_kat_anim;
+    TextureResizeAnimation* skip_r_kat_anim;
+    TextureResizeAnimation* menu_don_anim;
+    TextureResizeAnimation* speed_l_kat_anim;
+    TextureResizeAnimation* speed_r_kat_anim;
 
     void init_tja_practice(const fs::path& song);
     void pause_song_practice();

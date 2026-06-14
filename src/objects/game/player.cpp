@@ -303,8 +303,8 @@ void Player::update(double ms_from_start, double current_ms, std::optional<Backg
         }
     }
     for (auto it = draw_drum_hit_list.begin(); it != draw_drum_hit_list.end(); ) {
-        it->update(current_ms);
-        if (it->is_finished()) {
+        (*it)->update(current_ms);
+        if ((*it)->is_finished()) {
             it = draw_drum_hit_list.erase(it);
         } else {
             ++it;
@@ -1188,7 +1188,7 @@ void Player::kusudama_counter_manager(double current_ms) {
 void Player::spawn_hit_effects(DrumType drum_type, Side side) {
     lane_hit_effect = LaneHitEffect(drum_type, Judgments::BAD); //judgment parameter workaround
     if (draw_drum_hit_list.size() < 4) {
-        draw_drum_hit_list.push_back(DrumHitEffect(drum_type, side));
+        draw_drum_hit_list.push_back(std::make_unique<DrumHitEffect>(drum_type, side));
     }
 }
 
@@ -1414,8 +1414,8 @@ void Player::draw_overlays(float y, const ray::Shader& mask_shader) {
         std::visit([](auto& anim) { anim.draw(); }, ending_anim.value());
     }
 
-    for (DrumHitEffect& anim : draw_drum_hit_list) {
-        anim.draw(y);
+    for (auto& anim : draw_drum_hit_list) {
+        anim->draw(y);
     }
     for (NoteArc& anim : draw_arc_list) {
         anim.draw(y, mask_shader);
@@ -1507,7 +1507,7 @@ void Player::seek_to(double resume_time) {
     reset_chart();
 
     auto filter = [resume_time](std::deque<Note>& q) {
-        while (!q.empty() && q.front().hit_ms <= resume_time) q.pop_front();
+        while (!q.empty() && q.front().hit_ms < resume_time) q.pop_front();
     };
     filter(don_notes);
     filter(kat_notes);
@@ -1515,6 +1515,6 @@ void Player::seek_to(double resume_time) {
 
     draw_note_list.erase(
         std::remove_if(draw_note_list.begin(), draw_note_list.end(),
-            [resume_time](const Note& n) { return n.hit_ms <= resume_time; }),
+            [resume_time](const Note& n) { return n.hit_ms < resume_time; }),
         draw_note_list.end());
 }
