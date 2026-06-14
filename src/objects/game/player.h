@@ -111,6 +111,7 @@ private:
     float judge_x;
     float judge_y;
 
+    float scroll_multiplier;
     bool is_gogo_time;
     Side autoplay_hit_side;
     int last_subdivision;

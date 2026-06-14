@@ -1,13 +1,14 @@
 #pragma once
 
 #include "global_data.h"
+#include <unordered_set>
 
 extern std::atomic<bool> input_thread_running;
 extern std::thread input_thread;
 
 extern std::mutex input_mutex;
-extern std::vector<int> pressed_keys;
-extern std::vector<int> released_keys;
+extern std::unordered_multiset<int> pressed_keys;
+extern std::unordered_multiset<int> released_keys;
 extern std::atomic<bool> touch_drum_pressed;
 
 void input_polling_thread();

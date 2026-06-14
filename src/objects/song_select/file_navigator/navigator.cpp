@@ -43,47 +43,58 @@ void Navigator::wait_for_song_files() {
         song_files_thread.join();
 }
 
+void Navigator::preload(std::vector<fs::path> songs_paths) {
+    if (is_preloaded) return;
+    root_paths = songs_paths;
+    open_index = 0;
+
+    song_files_thread = std::thread([this, songs_paths]() {
+        for (const fs::path& root_path : songs_paths) {
+            try {
+                std::error_code ec;
+                auto it = fs::recursive_directory_iterator(root_path, fs::directory_options::skip_permission_denied, ec);
+                while (it != fs::end(it)) {
+                    try {
+                        if (is_song_file(it->path())) {
+                            SongParser parsed_entry = SongParser(it->path());
+                            parsed_entry.get_metadata();
+                            song_files[{parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"]}] = it->path();
+                        }
+                    } catch (const std::exception& inner) {
+                        spdlog::warn("Skipping song during scan: {}", inner.what());
+                    }
+                    it.increment(ec);
+                    if (ec) { spdlog::warn("Skipping entry: {}", ec.message()); ec.clear(); }
+                }
+            } catch (const fs::filesystem_error& e) {
+                spdlog::error("Error scanning song directory: {}", e.what());
+            }
+        }
+    });
+
+    for (const fs::path& root_path : songs_paths) {
+        for (const auto& entry : fs::directory_iterator(root_path)) {
+            if (!fs::is_directory(entry) || !has_def_file(entry.path())) continue;
+            BoxDef bd = parse_box_def(entry.path());
+            if (bd.collection == "RECENT" && !recent_folder_path)
+                recent_folder_path = entry.path();
+            if (bd.collection == "FAVORITE" && !favorite_folder_path) {
+                favorite_folder_path = entry.path();
+                for (const auto& e : read_song_list(entry.path() / "song_list.txt"))
+                    favorite_songs.insert(e.title + "|" + e.subtitle);
+            }
+        }
+    }
+    is_preloaded = true;
+}
+
 void Navigator::init(std::vector<fs::path> songs_paths) {
     if (!is_init) {
-        root_paths = songs_paths;
-        open_index = 0;
+        if (!is_preloaded) {
+            preload(songs_paths);
+        }
 
-        song_files_thread = std::thread([this, songs_paths]() {
-            for (const fs::path& root_path : songs_paths) {
-                try {
-                    std::error_code ec;
-                    auto it = fs::recursive_directory_iterator(root_path, fs::directory_options::skip_permission_denied, ec);
-                    while (it != fs::end(it)) {
-                        try {
-                            if (is_song_file(it->path())) {
-                                SongParser parsed_entry = SongParser(it->path());
-                                parsed_entry.get_metadata();
-                                song_files[{parsed_entry.metadata.title["en"], parsed_entry.metadata.subtitle["en"]}] = it->path();
-                            }
-                        } catch (const std::exception& inner) {
-                            spdlog::warn("Skipping song during scan: {}", inner.what());
-                        }
-                        it.increment(ec);
-                        if (ec) { spdlog::warn("Skipping entry: {}", ec.message()); ec.clear(); }
-                    }
-                } catch (const fs::filesystem_error& e) {
-                    spdlog::error("Error scanning song directory: {}", e.what());
-                }
-            }
-        });
-
-        for (const fs::path& root_path : songs_paths) {
-            for (const auto& entry : fs::directory_iterator(root_path)) {
-                if (!fs::is_directory(entry) || !has_def_file(entry.path())) continue;
-                BoxDef bd = parse_box_def(entry.path());
-                if (bd.collection == "RECENT" && !recent_folder_path)
-                    recent_folder_path = entry.path();
-                if (bd.collection == "FAVORITE" && !favorite_folder_path) {
-                    favorite_folder_path = entry.path();
-                    for (const auto& e : read_song_list(entry.path() / "song_list.txt"))
-                        favorite_songs.insert(e.title + "|" + e.subtitle);
-                }
-            }
+        for (const fs::path& root_path : root_paths) {
             load_current_directory(root_path);
         }
         is_init = true;
@@ -128,7 +139,6 @@ void Navigator::join_loader() {
 }
 
 void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
-    std::lock_guard<std::mutex> lock(pending_mutex);
     auto last_write = fs::last_write_time(box->path);
     auto last_write_sys = ch::system_clock::now() +
         std::chrono::duration_cast<ch::system_clock::duration>(
@@ -136,6 +146,8 @@ void Navigator::enqueue_box(std::unique_ptr<BaseBox> box) {
     auto two_weeks_ago = ch::system_clock::now() - ch::weeks(2);
     if (last_write_sys < two_weeks_ago)
         box->is_new = true;
+
+    std::lock_guard<std::mutex> lock(pending_mutex);
     if (auto* song = dynamic_cast<SongBox*>(box.get())) {
         auto& t = song->parser.metadata.title;
         auto& s = song->parser.metadata.subtitle;
@@ -215,12 +227,17 @@ void Navigator::flush_pending_boxes() {
     }
 
     if (inline_state.has_value()) {
-        int insert_pos = inline_state->first_song_index + inline_state->songs_count;
-        while (!pending_inline_boxes.empty()) {
-            items.insert(items.begin() + insert_pos, std::move(pending_inline_boxes.front()));
-            pending_inline_boxes.pop();
-            inline_state->songs_count++;
-            insert_pos++;
+        if (!pending_inline_boxes.empty()) {
+            std::vector<std::unique_ptr<BaseBox>> batch;
+            while (!pending_inline_boxes.empty()) {
+                batch.push_back(std::move(pending_inline_boxes.front()));
+                pending_inline_boxes.pop();
+            }
+            int insert_pos = inline_state->first_song_index + inline_state->songs_count;
+            items.insert(items.begin() + insert_pos,
+                         std::make_move_iterator(batch.begin()),
+                         std::make_move_iterator(batch.end()));
+            inline_state->songs_count += (int)batch.size();
         }
         genre_bg_start = inline_state->first_song_index - 1;
         genre_bg_end = inline_state->first_song_index + inline_state->songs_count - 1;
@@ -658,6 +675,10 @@ void Navigator::load_songs_inline_async(const fs::path path, BoxDef box_def) {
 }
 
 BoxDef Navigator::parse_box_def(const fs::path& path) {
+    std::string key = path.string();
+    auto it = box_def_cache.find(key);
+    if (it != box_def_cache.end()) return it->second;
+
     std::ifstream boxDef(path / "box.def");
     std::string line;
     BoxDef result;
@@ -706,17 +727,28 @@ BoxDef Navigator::parse_box_def(const fs::path& path) {
             result.fore_color = parse_hex_color(get_value("#FORECOLOR:"));
         }
     }
+    box_def_cache[key] = result;
     return result;
 }
 
 bool Navigator::has_def_file(const std::filesystem::path& path) {
+    std::string key = path.string();
+    auto it = def_file_cache.find(key);
+    if (it != def_file_cache.end()) return it->second;
+
     std::error_code ec;
-    if (fs::exists(path / "box.def", ec)) return true;
+    if (fs::exists(path / "box.def", ec)) {
+        def_file_cache[key] = true;
+        return true;
+    }
 
     for (const auto& entry : fs::directory_iterator(path, fs::directory_options::skip_permission_denied, ec)) {
-        if (entry.is_directory(ec) && has_def_file(entry.path()))
+        if (entry.is_directory(ec) && has_def_file(entry.path())) {
+            def_file_cache[key] = true;
             return true;
+        }
     }
+    def_file_cache[key] = false;
     return false;
 }
 
@@ -797,6 +829,8 @@ void Navigator::load_current_directory(const fs::path path) {
     }
 
     open_index = 0;
+    def_file_cache.clear();
+    box_def_cache.clear();
     setup_back_box(path, true);
     is_processing = true;
     loading_complete = false;

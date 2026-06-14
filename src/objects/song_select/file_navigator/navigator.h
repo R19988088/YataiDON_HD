@@ -3,6 +3,7 @@
 #include "box_song.h"
 #include "genre_bg.h"
 #include <queue>
+#include <unordered_map>
 
 struct CourseStats {
     int total       = 0;
@@ -26,7 +27,8 @@ private:
     std::vector<std::unique_ptr<BaseBox>> items;
     std::map<std::pair<std::string, std::string>, fs::path> song_files;
     int open_index;
-    bool is_init = false;
+    bool is_init      = false;
+    bool is_preloaded = false;
 
     std::optional<InlineState>  inline_state;
     std::optional<fs::path>     pending_inline_path;
@@ -55,6 +57,8 @@ private:
     std::optional<fs::path>  recent_folder_path;
     std::optional<fs::path>  favorite_folder_path;
     std::set<std::string>    favorite_songs;
+    std::unordered_map<std::string, bool>    def_file_cache;
+    std::unordered_map<std::string, BoxDef>  box_def_cache;
 
     bool awaiting_diff_sort = false;
     std::optional<std::pair<int,int>> diff_sort_filter;
@@ -93,6 +97,7 @@ public:
     std::string current_search;
 
     void join_loader();
+    void preload(std::vector<fs::path> songs_paths);
     void init(std::vector<fs::path> songs_paths);
     void add_to_recent(const SongBox* song);
     void toggle_favorite(SongBox* song);

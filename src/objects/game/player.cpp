@@ -500,6 +500,7 @@ void Player::reset_chart() {
     Note* last_note = nullptr;
     end_time = 0;
     bpm = parser->metadata.bpm;
+    scroll_multiplier = 1.0f;
 
     for (Note& note: notes.notes) {
         get_load_time(note);
@@ -637,7 +638,7 @@ float Player::get_position_x(const Note& note, double current_ms) {
     if (delay_start.has_value()) {
         current_ms = delay_start.value();
     }
-    float speedx = note.bpm / 240000 * note.scroll_x * (tex.screen_width - JudgePos::X);
+    float speedx = note.bpm * scroll_multiplier / 240000 * note.scroll_x * (tex.screen_width - JudgePos::X);
     return JudgePos::X + (note.hit_ms - current_ms) * speedx;
 }
 
@@ -645,25 +646,18 @@ float Player::get_position_y(const Note& note, double current_ms) {
     if (delay_start.has_value()) {
         current_ms = delay_start.value();
     }
-    float speedy = note.bpm / 240000 * note.scroll_y * ((tex.screen_width - JudgePos::X)/tex.screen_width) * tex.screen_width;
+    float speedy = note.bpm * scroll_multiplier / 240000 * note.scroll_y * ((tex.screen_width - JudgePos::X)/tex.screen_width) * tex.screen_width;
     return (note.hit_ms - current_ms) * speedy;
 }
 
 void Player::handle_scroll_type_commands(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
     if (timeline_object.start_time > ms_from_start) return;
     if (timeline_object.bpmchange.has_value()) {
-        for (Note& note : draw_note_list) {
-            note.bpm *= timeline_object.bpmchange.value();
-        }
-        for (Note& note : draw_note_buffer) {
-            note.bpm *= timeline_object.bpmchange.value();
-        }
-        for (Note& note : barlines) {
-            note.bpm *= timeline_object.bpmchange.value();
-        }
-
+        scroll_multiplier *= timeline_object.bpmchange.value();
         bpm *= timeline_object.bpmchange.value();
-        timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+        if (buffer_index != (int)timeline_buffer.size() - 1)
+            timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+        timeline_buffer.pop_back();
         return;
     }
 
@@ -674,7 +668,9 @@ void Player::handle_scroll_type_commands(double ms_from_start, const TimelineObj
         } else {
             spdlog::error("Needs fix: delay is currently active, but another delay is being activated");
         }
-        timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+        if (buffer_index != (int)timeline_buffer.size() - 1)
+            timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+        timeline_buffer.pop_back();
         return;
     }
 }
@@ -695,7 +691,9 @@ void Player::handle_gogotime(double ms_from_start, const TimelineObject& timelin
         chara->set_anim(AnimIndex::DON_NORMAL);
     }
 
-    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+    if (buffer_index != (int)timeline_buffer.size() - 1)
+        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+    timeline_buffer.pop_back();
 }
 
 void Player::handle_judgeposition(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
@@ -720,7 +718,9 @@ void Player::handle_judgeposition(double ms_from_start, const TimelineObject& ti
     }
 
     if (ms_from_start > timeline_object.end_time) {
-        timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+        if (buffer_index != (int)timeline_buffer.size() - 1)
+            timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+        timeline_buffer.pop_back();
     }
 }
 
@@ -731,7 +731,9 @@ void Player::handle_bpmchange(double ms_from_start, const TimelineObject& timeli
     bpm = timeline_object.bpm.value();
     chara->set_bpm(bpm);
 
-    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+    if (buffer_index != (int)timeline_buffer.size() - 1)
+        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+    timeline_buffer.pop_back();
 }
 
 void Player::handle_branch_param(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
@@ -775,7 +777,9 @@ void Player::handle_branch_param(double ms_from_start, const TimelineObject& tim
             spdlog::info("branch condition measures started with conditions {}, {}, {}, starting at {} and ending at {}", branch_cond, e_req, m_req, timeline_object.start_time, branch_condition_end_time);
         }
     }
-    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+    if (buffer_index != (int)timeline_buffer.size() - 1)
+        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+    timeline_buffer.pop_back();
 }
 
 void Player::handle_section(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
@@ -785,7 +789,9 @@ void Player::handle_section(double ms_from_start, const TimelineObject& timeline
     branch_p_count = 0;
     branch_r_count = 0;
     branch_note_count = 0;
-    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+    if (buffer_index != (int)timeline_buffer.size() - 1)
+        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+    timeline_buffer.pop_back();
 }
 
 void Player::handle_lyric(double ms_from_start, const TimelineObject& timeline_object, int buffer_index) {
@@ -797,7 +803,9 @@ void Player::handle_lyric(double ms_from_start, const TimelineObject& timeline_o
     }
 
     current_lyric.emplace(timeline_object.lyric.value(), 40, ray::WHITE, ray::BLUE, false, 4.0);
-    timeline_buffer.erase(timeline_buffer.begin() + buffer_index);
+    if (buffer_index != (int)timeline_buffer.size() - 1)
+        timeline_buffer[buffer_index] = std::move(timeline_buffer.back());
+    timeline_buffer.pop_back();
 }
 
 void Player::play_note_manager(double current_ms, std::optional<Background>& background) {
@@ -890,11 +898,10 @@ void Player::draw_note_manager(double current_ms) {
         }
     }
 
-    for (int i = (int)barlines.size() - 1; i >= 0; i--) {
-        if (current_ms >= barlines[i].unload_ms) {
-            barlines.erase(barlines.begin() + i);
-        }
-    }
+    barlines.erase(
+        std::remove_if(barlines.begin(), barlines.end(),
+            [current_ms](const Note& n) { return current_ms >= n.unload_ms; }),
+        barlines.end());
 
     if (draw_note_buffer.empty()) return;
 
@@ -911,12 +918,10 @@ void Player::draw_note_manager(double current_ms) {
         }
     }
 
-    for (int i = (int)draw_note_buffer.size() - 1; i >= 0; i--) {
-        Note& note = draw_note_buffer[i];
-        if (current_ms >= note.unload_ms) {
-            draw_note_buffer.erase(draw_note_buffer.begin() + i);
-        }
-    }
+    draw_note_buffer.erase(
+        std::remove_if(draw_note_buffer.begin(), draw_note_buffer.end(),
+            [current_ms](const Note& n) { return current_ms >= n.unload_ms; }),
+        draw_note_buffer.end());
 }
 
 void Player::note_manager(double current_ms, std::optional<Background>& background) {

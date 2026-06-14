@@ -155,18 +155,12 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
 
     AudioEngine* engine = static_cast<AudioEngine*>(userData);
 
-    if (!engine) {
-        std::memset(out, 0, framesPerBuffer * 2 * sizeof(float));
-        return paContinue;
-    }
+    const unsigned long buffer_size = framesPerBuffer * 2;
+    std::memset(out, 0, buffer_size * sizeof(float));
+
+    if (!engine) return paContinue;
 
     std::shared_lock<std::shared_mutex> guard(engine->rw_lock);
-
-    // Initialize output buffer with silence
-    const unsigned long buffer_size = framesPerBuffer * 2;
-    for (unsigned long i = 0; i < buffer_size; i++) {
-        out[i] = 0.0f;
-    }
 
     for (auto& [name, snd] : engine->sounds) {
         std::atomic_ref<bool>         aref_playing(snd.is_playing);
@@ -339,10 +333,10 @@ int AudioEngine::port_audio_callback(const void *inputBuffer, void *outputBuffer
         }
     }
 
-    const float master_vol = engine->master_volume.load(std::memory_order_relaxed);
-    const unsigned long output_buffer_size = framesPerBuffer * 2;
+    guard.unlock();
 
-    for (unsigned long i = 0; i < output_buffer_size; i++) {
+    const float master_vol = engine->master_volume.load(std::memory_order_relaxed);
+    for (unsigned long i = 0; i < buffer_size; i++) {
         float sample = out[i] * master_vol;
         out[i] = (sample > 1.0f) ? 1.0f : ((sample < -1.0f) ? -1.0f : sample);
     }

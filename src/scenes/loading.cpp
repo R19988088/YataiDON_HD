@@ -3,6 +3,7 @@
 #include "../libs/scores.h"
 #include "../libs/filesystem.h"
 #include "../libs/song_parser.h"
+#include "../objects/song_select/file_navigator/navigator.h"
 
 void LoadingScreen::on_screen_start() {
     Screen::on_screen_start();
@@ -80,7 +81,13 @@ void LoadingScreen::load_song_hashes() {
         scores_manager.py_taiko_import(fs::path("scores_pytaiko.db"));
         fs::remove(fs::path("scores_pytaiko.db"));
     }
+
+    load_navigator();
     loading_complete = true;
+}
+
+void LoadingScreen::load_navigator() {
+    navigator.preload(global_data.config->paths.tja_path);
 }
 
 Screens LoadingScreen::on_screen_end(Screens next_screen) {
