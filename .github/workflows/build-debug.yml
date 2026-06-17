@@ -209,7 +209,6 @@ jobs:
             cmake \
             ninja \
             pkg-config \
-            lua \
             ffmpeg \
             sdl3 \
             libogg \
