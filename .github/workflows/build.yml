@@ -267,9 +267,18 @@ jobs:
             cmake \
             ninja \
             pkg-config \
+            lua \
             ffmpeg \
             sdl3 \
-            dylibbundler
+            dylibbundler \
+            libogg \
+            libvorbis \
+            flac \
+            opus \
+            lame \
+            mpg123 \
+            speex \
+            libsndfile
 
       - name: Configure CMake
         run: |
