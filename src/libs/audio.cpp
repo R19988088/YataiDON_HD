@@ -389,7 +389,20 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
         spdlog::info("    > Buffer frames: {}", AAudioStream_getBufferSizeInFrames(aastream));
 #elif !defined(__EMSCRIPTEN__)
         // --- Desktop: use RtAudio ---
-        rt_audio = new RtAudio();
+        static const RtAudio::Api api_map[] = {
+            RtAudio::UNSPECIFIED,    // 0 - auto
+            RtAudio::LINUX_ALSA,     // 1
+            RtAudio::LINUX_PULSE,    // 2
+            RtAudio::UNIX_JACK,      // 3
+            RtAudio::MACOSX_CORE,    // 4
+            RtAudio::WINDOWS_WASAPI, // 5
+            RtAudio::WINDOWS_ASIO,   // 6
+            RtAudio::WINDOWS_DS,     // 7
+        };
+        int api_idx = std::max(audio_config.device_type, 0);
+        RtAudio::Api api = (api_idx < (int)(sizeof(api_map) / sizeof(api_map[0])))
+                           ? api_map[api_idx] : RtAudio::UNSPECIFIED;
+        rt_audio = new RtAudio(api);
 
         if (rt_audio->getDeviceCount() == 0) {
             spdlog::error("No audio devices found");
