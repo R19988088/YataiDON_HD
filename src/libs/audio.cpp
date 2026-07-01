@@ -1,6 +1,5 @@
 #include "audio.h"
 #ifdef __ANDROID__
-#include <aaudio/AAudio.h>
 extern "C" {
 #include <libavformat/avformat.h>
 #include <libavcodec/avcodec.h>
@@ -86,14 +85,6 @@ static bool ffmpeg_decode_float(const char* path,
     avformat_close_input(&fmt);
     return true;
 }
-
-static aaudio_data_callback_result_t android_audio_callback(
-    AAudioStream* /*stream*/, void* userData, void* audioData, int32_t numFrames)
-{
-    AudioEngine::audio_callback(audioData, nullptr,
-        static_cast<unsigned int>(numFrames), 0.0, 0, userData);
-    return AAUDIO_CALLBACK_RESULT_CONTINUE;
-}
 #endif // __ANDROID__
 
 static sf_count_t vf_get_filelen(void* user_data) {
@@ -145,19 +136,12 @@ AudioEngine::~AudioEngine() {
     }
 }
 
-#ifndef __EMSCRIPTEN__
-int AudioEngine::audio_callback(void* outputBuffer, void* inputBuffer,
-                                unsigned int framesPerBuffer, double streamTime,
-                                unsigned int status, void* userData) {
-
-    float* out = static_cast<float*>(outputBuffer);
-
-    AudioEngine* engine = static_cast<AudioEngine*>(userData);
+void AudioEngine::mix(float* out, unsigned int framesPerBuffer, AudioEngine* engine) {
 
     const unsigned long buffer_size = framesPerBuffer * 2;
     std::memset(out, 0, buffer_size * sizeof(float));
 
-    if (!engine) return 0;
+    if (!engine) return;
 
     std::shared_lock<std::shared_mutex> guard(engine->rw_lock);
 
@@ -340,9 +324,22 @@ int AudioEngine::audio_callback(void* outputBuffer, void* inputBuffer,
         out[i] = (sample > 1.0f) ? 1.0f : ((sample < -1.0f) ? -1.0f : sample);
     }
 
+}
+
+void AudioEngine::ma_audio_callback(ma_device* pDevice, void* pOutput, const void* /*pInput*/, ma_uint32 frameCount) {
+    AudioEngine* engine = static_cast<AudioEngine*>(pDevice->pUserData);
+    mix(static_cast<float*>(pOutput), frameCount, engine);
+}
+
+#ifdef _WIN32
+int AudioEngine::rt_audio_callback(void* outputBuffer, void* /*inputBuffer*/,
+                                    unsigned int framesPerBuffer, double /*streamTime*/,
+                                    unsigned int /*status*/, void* userData) {
+    AudioEngine* engine = static_cast<AudioEngine*>(userData);
+    mix(static_cast<float*>(outputBuffer), framesPerBuffer, engine);
     return 0;
 }
-#endif // !__EMSCRIPTEN__
+#endif
 
 bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConfig& audio_config, const VolumeConfig& volume_presets) {
     this->sounds_path = sounds_path;
@@ -352,109 +349,145 @@ bool AudioEngine::init_audio_device(const fs::path& sounds_path, const AudioConf
     this->is_ready = false;
     this->master_volume = 1.0f;
     try {
-#ifdef __ANDROID__
-        AAudioStreamBuilder* builder = nullptr;
-        aaudio_result_t ares = AAudio_createStreamBuilder(&builder);
-        if (ares != AAUDIO_OK) {
-            spdlog::error("AAudio_createStreamBuilder failed: {}", AAudio_convertResultToText(ares));
-            return false;
+#if defined(_WIN32)
+        if (audio_config.device_type == 6) {
+            // ASIO via RtAudio (Windows only)
+            rt_audio = new RtAudio(RtAudio::WINDOWS_ASIO, [](RtAudioErrorType type, const std::string& errorText) {
+                if (type == RTAUDIO_WARNING)
+                    spdlog::warn("RtAudio ASIO: {}", errorText);
+                else
+                    spdlog::error("RtAudio ASIO: {}", errorText);
+            });
+
+            if (rt_audio->getDeviceCount() == 0) {
+                spdlog::error("No ASIO devices found");
+                delete rt_audio;
+                rt_audio = nullptr;
+                return false;
+            }
+
+            RtAudio::StreamParameters params;
+            params.deviceId     = rt_audio->getDefaultOutputDevice();
+            params.nChannels    = 2;
+            params.firstChannel = 0;
+
+            unsigned int bufferFrames = static_cast<unsigned int>(buffer_size);
+
+            RtAudio::StreamOptions options;
+            options.flags    = RTAUDIO_MINIMIZE_LATENCY | RTAUDIO_SCHEDULE_REALTIME;
+            options.priority = 99;
+
+            RtAudioErrorType err = rt_audio->openStream(&params, nullptr, RTAUDIO_FLOAT32,
+                static_cast<unsigned int>(target_sample_rate), &bufferFrames,
+                &AudioEngine::rt_audio_callback, this, &options);
+            if (err != RTAUDIO_NO_ERROR) {
+                spdlog::error("Failed to open ASIO stream: {}", rt_audio->getErrorText());
+                delete rt_audio;
+                rt_audio = nullptr;
+                return false;
+            }
+
+            err = rt_audio->startStream();
+            if (err != RTAUDIO_NO_ERROR) {
+                spdlog::error("Failed to start ASIO stream: {}", rt_audio->getErrorText());
+                rt_audio->closeStream();
+                delete rt_audio;
+                rt_audio = nullptr;
+                return false;
+            }
+
+            is_ready = true;
+
+            auto dev_info = rt_audio->getDeviceInfo(params.deviceId);
+            spdlog::info("Audio Device initialized successfully");
+            spdlog::info("    > Backend:       RtAudio | ASIO");
+            spdlog::info("    > Device:        {}", dev_info.name);
+            spdlog::info("    > Format:        Float32");
+            spdlog::info("    > Channels:      2");
+            spdlog::info("    > Sample rate:   {} Hz", rt_audio->getStreamSampleRate());
+            spdlog::info("    > Buffer size:   {} frames (actual)", bufferFrames);
+        } else
+#endif
+        {
+            // miniaudio: all platforms (WASAPI, DS, CoreAudio, ALSA, PulseAudio, JACK, AAudio, WebAudio)
+            static const ma_backend ma_backend_map[] = {
+                ma_backend_wasapi,      // 0 placeholder (auto handled below)
+                ma_backend_alsa,        // 1
+                ma_backend_pulseaudio,  // 2
+                ma_backend_jack,        // 3
+                ma_backend_coreaudio,   // 4
+                ma_backend_wasapi,      // 5
+                ma_backend_wasapi,      // 6 ASIO handled above (Windows only)
+                ma_backend_dsound,      // 7
+            };
+
+            ma_context_config ctx_config = ma_context_config_init();
+            ma_result result;
+
+            int device_type = audio_config.device_type;
+            if (device_type > 0 && device_type < 8 && device_type != 6) {
+                ma_backend chosen = ma_backend_map[device_type];
+                result = ma_context_init(&chosen, 1, &ctx_config, &ma_ctx);
+            } else {
+                result = ma_context_init(nullptr, 0, &ctx_config, &ma_ctx);
+            }
+
+            if (result != MA_SUCCESS) {
+                spdlog::error("Failed to initialize miniaudio context: {}", ma_result_description(result));
+                return false;
+            }
+            ma_ctx_initialized = true;
+
+            ma_device_config config = ma_device_config_init(ma_device_type_playback);
+            config.playback.format    = ma_format_f32;
+            config.playback.channels  = 2;
+            config.sampleRate         = static_cast<ma_uint32>(target_sample_rate);
+            config.dataCallback       = AudioEngine::ma_audio_callback;
+            config.pUserData          = this;
+            config.periodSizeInFrames = static_cast<ma_uint32>(buffer_size);
+            if (audio_config.exclusive_mode)
+                config.playback.shareMode = ma_share_mode_exclusive;
+
+            result = ma_device_init(&ma_ctx, &config, &ma_dev);
+            if (result == MA_SHARE_MODE_NOT_SUPPORTED && audio_config.exclusive_mode) {
+                spdlog::warn("Exclusive mode not supported by device, falling back to shared mode");
+                config.playback.shareMode = ma_share_mode_shared;
+                result = ma_device_init(&ma_ctx, &config, &ma_dev);
+            }
+            if (result != MA_SUCCESS) {
+                spdlog::error("Failed to initialize miniaudio device: {}", ma_result_description(result));
+                ma_context_uninit(&ma_ctx);
+                ma_ctx_initialized = false;
+                return false;
+            }
+            ma_dev_initialized = true;
+
+            result = ma_device_start(&ma_dev);
+            if (result != MA_SUCCESS) {
+                spdlog::error("Failed to start miniaudio device: {}", ma_result_description(result));
+                ma_device_uninit(&ma_dev);
+                ma_dev_initialized = false;
+                ma_context_uninit(&ma_ctx);
+                ma_ctx_initialized = false;
+                return false;
+            }
+
+            is_ready = true;
+
+            bool got_exclusive = audio_config.exclusive_mode &&
+                                 (config.playback.shareMode == ma_share_mode_exclusive);
+            spdlog::info("Audio Device initialized successfully");
+            spdlog::info("    > Backend:       miniaudio | {}", ma_get_backend_name(ma_ctx.backend));
+            spdlog::info("    > Device:        {}", ma_dev.playback.name);
+            spdlog::info("    > Share mode:    {} (requested: {})",
+                         got_exclusive ? "exclusive" : "shared",
+                         audio_config.exclusive_mode ? "exclusive" : "shared");
+            spdlog::info("    > Format:        Float32");
+            spdlog::info("    > Channels:      {}", ma_dev.playback.internalChannels);
+            spdlog::info("    > Sample rate:   {} Hz (requested {} Hz)",
+                         ma_dev.playback.internalSampleRate, (int)target_sample_rate);
+            spdlog::info("    > Buffer size:   {} frames (actual)", ma_dev.playback.internalPeriodSizeInFrames);
         }
-        AAudioStreamBuilder_setFormat(builder, AAUDIO_FORMAT_PCM_FLOAT);
-        AAudioStreamBuilder_setChannelCount(builder, 2);
-        AAudioStreamBuilder_setSampleRate(builder, static_cast<int32_t>(target_sample_rate));
-        AAudioStreamBuilder_setPerformanceMode(builder, AAUDIO_PERFORMANCE_MODE_LOW_LATENCY);
-        AAudioStreamBuilder_setDirection(builder, AAUDIO_DIRECTION_OUTPUT);
-        AAudioStreamBuilder_setDataCallback(builder, android_audio_callback, this);
-        AAudioStreamBuilder_setBufferCapacityInFrames(builder, static_cast<int32_t>(buffer_size) * 4);
-
-        AAudioStream* aastream = nullptr;
-        ares = AAudioStreamBuilder_openStream(builder, &aastream);
-        AAudioStreamBuilder_delete(builder);
-        if (ares != AAUDIO_OK) {
-            spdlog::error("AAudioStreamBuilder_openStream failed: {}", AAudio_convertResultToText(ares));
-            return false;
-        }
-        ares = AAudioStream_requestStart(aastream);
-        if (ares != AAUDIO_OK) {
-            spdlog::error("AAudioStream_requestStart failed: {}", AAudio_convertResultToText(ares));
-            AAudioStream_close(aastream);
-            return false;
-        }
-        android_stream_ptr = aastream;
-        is_ready = true;
-        spdlog::info("Audio Device initialized successfully");
-        spdlog::info("    > Backend:       AAudio");
-        spdlog::info("    > Channels:      {}", AAudioStream_getChannelCount(aastream));
-        spdlog::info("    > Sample rate:   {}", AAudioStream_getSampleRate(aastream));
-        spdlog::info("    > Buffer frames: {}", AAudioStream_getBufferSizeInFrames(aastream));
-#elif !defined(__EMSCRIPTEN__)
-        // --- Desktop: use RtAudio ---
-        static const RtAudio::Api api_map[] = {
-            RtAudio::UNSPECIFIED,    // 0 - auto
-            RtAudio::LINUX_ALSA,     // 1
-            RtAudio::LINUX_PULSE,    // 2
-            RtAudio::UNIX_JACK,      // 3
-            RtAudio::MACOSX_CORE,    // 4
-            RtAudio::WINDOWS_WASAPI, // 5
-            RtAudio::WINDOWS_ASIO,   // 6
-            RtAudio::WINDOWS_DS,     // 7
-        };
-        int api_idx = std::max(audio_config.device_type, 0);
-        RtAudio::Api api = (api_idx < (int)(sizeof(api_map) / sizeof(api_map[0])))
-                           ? api_map[api_idx] : RtAudio::UNSPECIFIED;
-        rt_audio = new RtAudio(api);
-
-        if (rt_audio->getDeviceCount() == 0) {
-            spdlog::error("No audio devices found");
-            delete rt_audio;
-            rt_audio = nullptr;
-            return false;
-        }
-
-        RtAudio::StreamParameters params;
-        params.deviceId     = rt_audio->getDefaultOutputDevice();
-        params.nChannels    = 2;
-        params.firstChannel = 0;
-
-        unsigned int bufferFrames = static_cast<unsigned int>(buffer_size);
-
-        RtAudio::StreamOptions options;
-        options.flags = RTAUDIO_MINIMIZE_LATENCY | RTAUDIO_SCHEDULE_REALTIME;
-        options.priority = 99;
-        if (audio_config.exclusive_mode) options.flags |= RTAUDIO_HOG_DEVICE;
-
-        RtAudioErrorType err = rt_audio->openStream(&params, nullptr, RTAUDIO_FLOAT32,
-            static_cast<unsigned int>(target_sample_rate), &bufferFrames,
-            &AudioEngine::audio_callback, this, &options);
-        if (err != RTAUDIO_NO_ERROR) {
-            spdlog::error("Failed to open audio stream: {}", rt_audio->getErrorText());
-            delete rt_audio;
-            rt_audio = nullptr;
-            return false;
-        }
-
-        err = rt_audio->startStream();
-        if (err != RTAUDIO_NO_ERROR) {
-            spdlog::error("Failed to start audio stream: {}", rt_audio->getErrorText());
-            rt_audio->closeStream();
-            delete rt_audio;
-            rt_audio = nullptr;
-            return false;
-        }
-
-        is_ready = true;
-
-        spdlog::info("Audio Device initialized successfully");
-        spdlog::info("    > Backend:       RtAudio | {}", RtAudio::getApiDisplayName(rt_audio->getCurrentApi()));
-        spdlog::info("    > Exclusive:     {}", audio_config.exclusive_mode ? "yes" : "no");
-        spdlog::info("    > Format:        {}", "Float32");
-        spdlog::info("    > Channels:      {}", 2);
-        spdlog::info("    > Sample rate:   {}", target_sample_rate);
-        spdlog::info("    > Buffer size:   {} (actual)", bufferFrames);
-        spdlog::info("    > Latency:       {:.2f} ms", (rt_audio->getStreamLatency() / target_sample_rate) * 1000.0);
-#else
-        spdlog::warn("Audio device not initialized: audio backend unavailable on this platform");
-#endif // !__ANDROID__ && !__EMSCRIPTEN__
 
         return is_ready;
     } catch (const std::exception& e) {
@@ -468,14 +501,15 @@ void AudioEngine::close_audio_device() {
         unload_all_sounds();
         unload_all_music();
 
-#ifdef __ANDROID__
-        if (android_stream_ptr != nullptr) {
-            AAudioStream* aastream = static_cast<AAudioStream*>(android_stream_ptr);
-            AAudioStream_requestStop(aastream);
-            AAudioStream_close(aastream);
-            android_stream_ptr = nullptr;
+        if (ma_dev_initialized) {
+            ma_device_uninit(&ma_dev);
+            ma_dev_initialized = false;
         }
-#elif !defined(__EMSCRIPTEN__)
+        if (ma_ctx_initialized) {
+            ma_context_uninit(&ma_ctx);
+            ma_ctx_initialized = false;
+        }
+#ifdef _WIN32
         if (rt_audio != nullptr) {
             if (rt_audio->isStreamRunning()) rt_audio->stopStream();
             if (rt_audio->isStreamOpen()) rt_audio->closeStream();

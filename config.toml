@@ -1,77 +1,73 @@
-[general]
-fps_counter = false
-audio_offset = 0
-visual_offset = 0
-language = "en"
-song_limit = 0
-timer_frozen = true
-song_timer = false
-judge_counter = false
-nijiiro_notes = false
-log_level = "warning"
-fake_online = false
-practice_mode_bar_delay = 1
-score_method = "shinuchi"
-display_bpm = false
-webcam_number = -1
-player_1_id = 1
-player_2_id = 2
-touch_input = false
-
-[paths]
-tja_path = ['Songs']
-skin = 'PyTaikoGreen'
-
-[keys]
-exit_key = 'Q'
-borderless_key = 'F10'
-fullscreen_key = 'F11'
-pause_key = "SPACE"
-back_key = 'ESCAPE'
-restart_key = 'F1'
-
-[keys_1p]
-left_kat = ['D']
-left_don = ['F']
-right_don = ['J']
-right_kat = ['K']
-
-[keys_2p]
-left_kat = ["Z"]
-left_don = ["X"]
-right_don = ["C"]
-right_kat = ["V"]
+[audio]
+buffer_size = 128
+device_type = 5
+exclusive_mode = true
+sample_rate = 48000
 
 [gamepad_1p]
-left_kat = [10]
-left_don = [16]
-right_don = [17]
-right_kat = [12]
+left_don = [ 16 ]
+left_kat = [ 10 ]
+right_don = [ 17 ]
+right_kat = [ 12 ]
 
 [gamepad_2p]
-left_kat = []
 left_don = []
+left_kat = []
 right_don = []
 right_kat = []
 
-[audio]
-# device_type: 0 = default, this will be set on first launch to the recommended setting
-# Windows users should generally pick 4 (WDM-KS) and Linux users should pick 0 (ALSA)
-device_type = 0
-sample_rate = 44100
-# buffer_size: Size in samples per audio buffer
-# - 0 = let driver choose (may result in very small buffers with ASIO, typically 64)
-buffer_size = 128
+[general]
+audio_offset = 0
+fake_online = false
+fps_counter = false
+judge_counter = false
+language = 'en'
+log_level = "\u0002"
+nijiiro_notes = false
+player_1_id = 1
+player_2_id = 2
+practice_mode_bar_delay = 1
+score_method = 'shinuchi'
+song_limit = 0
+song_timer = false
+timer_frozen = true
+touch_input = false
+visual_offset = 0
+webcam_number = -1
 
-[volume]
-sound = 1.0
-music = 0.8
-voice = 1.0
-hitsound = 1.0
-attract_mode = 1.0
+[keys]
+back_key = 'escape'
+borderless_key = 'f10'
+exit_key = 'Q'
+fullscreen_key = 'f11'
+pause_key = 'space'
+restart_key = 'f1'
+
+[keys_1p]
+left_don = [ 'F' ]
+left_kat = [ 'D' ]
+right_don = [ 'J' ]
+right_kat = [ 'K' ]
+
+[keys_2p]
+left_don = [ 'X' ]
+left_kat = [ 'Z' ]
+right_don = [ 'C' ]
+right_kat = [ 'V' ]
+
+[paths]
+skin = 'PyTaikoGreen'
+tja_path = [ 'Songs' ]
 
 [video]
-fullscreen = false
 borderless = false
+fullscreen = false
 target_fps = -1
 vsync = false
+
+[volume]
+attract_mode = 1.0
+hitsound = 1.0
+music = 0.80000001192092896
+sound = 1.0
+voice = 1.0

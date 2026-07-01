@@ -2,7 +2,8 @@
 
 #include "config.h"
 #include "av.h"
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#include "miniaudio.h"
+#ifdef _WIN32
 #include <RtAudio.h>
 #endif
 #include <sndfile.h>
@@ -145,11 +146,13 @@ private:
     mutable std::shared_mutex rw_lock;
     std::atomic<float> master_volume;
 
-#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
-    RtAudio* rt_audio = nullptr;
-#endif
-#ifdef __ANDROID__
-    void* android_stream_ptr = nullptr; // AAudioStream*, type-erased to avoid platform header in .h
+    ma_context ma_ctx{};
+    ma_device  ma_dev{};
+    bool       ma_ctx_initialized = false;
+    bool       ma_dev_initialized = false;
+
+#ifdef _WIN32
+    RtAudio* rt_audio = nullptr;  // ASIO (device_type == 6) only
 #endif
 
     std::unordered_map<std::string, sound> sounds;
@@ -157,11 +160,13 @@ private:
 
     std::string path_to_string(const fs::path& path) const;
 
-public:
-    // Public so the Android AAudio C-callback (file-scope static) can call it.
-    static int audio_callback(void* outputBuffer, void* inputBuffer,
-                              unsigned int framesPerBuffer, double streamTime,
-                              unsigned int status, void* userData);
+    static void mix(float* out, unsigned int framesPerBuffer, AudioEngine* engine);
+    static void ma_audio_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount);
+#ifdef _WIN32
+    static int  rt_audio_callback(void* outputBuffer, void* inputBuffer,
+                                   unsigned int framesPerBuffer, double streamTime,
+                                   unsigned int status, void* userData);
+#endif
 };
 
 extern AudioEngine audio;
