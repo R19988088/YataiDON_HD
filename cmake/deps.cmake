@@ -165,9 +165,6 @@ elseif(ANDROID OR EMSCRIPTEN)
       PATCH_COMMAND sed -i "s/cmake_minimum_required(VERSION 2\\.8\\.12)/cmake_minimum_required(VERSION 3.5)/" CMakeLists.txt || true
   )
   FetchContent_MakeAvailable(ogg)
-  # Set cache vars so libsndfile's FindOGG uses our FetchContent target.
-  # Using the target name directly (not a file path) works because CMake
-  # recognises it as a target when linking, and find_*() honours cached values.
   set(OGG_INCLUDE_DIR "${ogg_SOURCE_DIR}/include" CACHE PATH "" FORCE)
   set(OGG_LIBRARY "ogg" CACHE STRING "" FORCE)
 
@@ -183,15 +180,56 @@ elseif(ANDROID OR EMSCRIPTEN)
   set(Vorbis_Vorbis_LIBRARY "vorbis" CACHE STRING "" FORCE)
   set(Vorbis_File_INCLUDE_DIR "${vorbis_SOURCE_DIR}/include" CACHE PATH "" FORCE)
   set(Vorbis_File_LIBRARY "vorbisfile" CACHE STRING "" FORCE)
+  set(Vorbis_Enc_INCLUDE_DIR "${vorbis_SOURCE_DIR}/include" CACHE PATH "" FORCE)
   set(Vorbis_Enc_LIBRARY "vorbisenc" CACHE STRING "" FORCE)
+  if(NOT TARGET Vorbis::vorbis)
+    add_library(Vorbis::vorbis ALIAS vorbis)
+  endif()
+  if(NOT TARGET Vorbis::vorbisenc)
+    add_library(Vorbis::vorbisenc ALIAS vorbisenc)
+  endif()
+  if(NOT TARGET Vorbis::vorbisfile)
+    add_library(Vorbis::vorbisfile ALIAS vorbisfile)
+  endif()
 
-  message(STATUS "Fetching libsndfile from source (Android, OGG/FLAC/Opus only, no MP3)")
+  message(STATUS "Fetching libflac for ${CMAKE_SYSTEM_NAME} (needed by libsndfile)")
+  set(BUILD_CXXLIBS OFF CACHE BOOL "" FORCE)
+  set(BUILD_PROGRAMS OFF CACHE BOOL "" FORCE)
+  set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+  set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  set(INSTALL_MANPAGES OFF CACHE BOOL "" FORCE)
+  set(WITH_OGG ON CACHE BOOL "" FORCE)
+  FetchContent_Declare(
+      flac
+      GIT_REPOSITORY https://github.com/xiph/flac.git
+      GIT_TAG 1.4.3
+      GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(flac)
+  set(FLAC_INCLUDE_DIR "${flac_SOURCE_DIR}/include" CACHE PATH "" FORCE)
+  set(FLAC_LIBRARY "FLAC" CACHE STRING "" FORCE)
+
+  message(STATUS "Fetching libopus for ${CMAKE_SYSTEM_NAME} (needed by libsndfile)")
+  FetchContent_Declare(
+      opus
+      GIT_REPOSITORY https://github.com/xiph/opus.git
+      GIT_TAG v1.5.2
+      GIT_SHALLOW TRUE
+  )
+  FetchContent_MakeAvailable(opus)
+  set(OPUS_INCLUDE_SHIM_DIR "${CMAKE_BINARY_DIR}/opus_include_shim")
+  file(MAKE_DIRECTORY "${OPUS_INCLUDE_SHIM_DIR}")
+  if(NOT EXISTS "${OPUS_INCLUDE_SHIM_DIR}/opus")
+    file(CREATE_LINK "${opus_SOURCE_DIR}/include" "${OPUS_INCLUDE_SHIM_DIR}/opus" SYMBOLIC)
+  endif()
+  target_include_directories(opus INTERFACE "$<BUILD_INTERFACE:${OPUS_INCLUDE_SHIM_DIR}>")
+  set(OPUS_INCLUDE_DIR "${OPUS_INCLUDE_SHIM_DIR}" CACHE PATH "" FORCE)
+  set(OPUS_LIBRARY "opus" CACHE STRING "" FORCE)
+
+  message(STATUS "Fetching libsndfile from source (${CMAKE_SYSTEM_NAME}, OGG/Vorbis/FLAC/Opus, no MP3)")
   set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
   set(ENABLE_EXTERNAL_LIBS ON CACHE BOOL "" FORCE)
   set(ENABLE_MPEG OFF CACHE BOOL "" FORCE)
-  set(ENABLE_OPUS OFF CACHE BOOL "" FORCE)
-  set(ENABLE_FLAC OFF CACHE BOOL "" FORCE)
-  set(ENABLE_VORBIS ON CACHE BOOL "" FORCE)
   set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
   FetchContent_Declare(
       libsndfile

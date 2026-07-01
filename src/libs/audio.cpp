@@ -87,6 +87,34 @@ static bool ffmpeg_decode_float(const char* path,
 }
 #endif // __ANDROID__
 
+#ifdef __EMSCRIPTEN__
+// Decode any audio file miniaudio understands (wav/flac/mp3) to float32 interleaved.
+// Used as a fallback for formats libsndfile can't open on this platform (mp3, flac; ogg/vorbis
+// already goes through libsndfile directly). Returns false on failure.
+static bool miniaudio_decode_float(const char* path,
+    float** out_data, sf_count_t* out_frames,
+    unsigned int* out_rate, unsigned int* out_channels)
+{
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 0, 0);
+    ma_uint64 frame_count = 0;
+    void* pcm = nullptr;
+
+    ma_result result = ma_decode_file(path, &config, &frame_count, &pcm);
+    if (result != MA_SUCCESS || pcm == nullptr) return false;
+
+    size_t sample_count = (size_t)frame_count * config.channels;
+    float* data = new float[sample_count];
+    std::memcpy(data, pcm, sample_count * sizeof(float));
+    ma_free(pcm, nullptr);
+
+    *out_data     = data;
+    *out_frames   = (sf_count_t)frame_count;
+    *out_rate     = config.sampleRate;
+    *out_channels = config.channels;
+    return true;
+}
+#endif // __EMSCRIPTEN__
+
 static sf_count_t vf_get_filelen(void* user_data) {
     auto* vf = static_cast<VirtualFile*>(user_data);
     return static_cast<sf_count_t>(vf->data->size());
@@ -614,6 +642,51 @@ std::string AudioEngine::load_sound(const fs::path& file_path, const std::string
             spdlog::debug("Loaded sound (ffmpeg): {} ({} frames, {} Hz, {} ch)",
                           name, snd.frame_count, snd.sample_rate, snd.channels);
             return name;
+#elif defined(__EMSCRIPTEN__)
+            float* ma_data = nullptr;
+            sf_count_t ma_frames = 0;
+            unsigned int ma_rate = 0, ma_ch = 0;
+            std::string path_str2 = path_to_string(file_path);
+            if (!miniaudio_decode_float(path_str2.c_str(), &ma_data, &ma_frames, &ma_rate, &ma_ch)) {
+                spdlog::error("Failed to open sound file: {} - {} (miniaudio fallback also failed)",
+                              file_path.string(), sf_strerror(NULL));
+                return "";
+            }
+            sound snd;
+            snd.data        = ma_data;
+            snd.frame_count = ma_frames;
+            snd.sample_rate = ma_rate;
+            snd.channels    = ma_ch;
+            snd.is_playing  = false;
+            snd.current_frame = 0;
+            snd.loop   = false;
+            snd.volume = 1.0f;
+            snd.pan    = 0.5f;
+            snd.pitch  = 1.0f;
+            if ((double)ma_rate != target_sample_rate) {
+                double ratio = target_sample_rate / (double)ma_rate;
+                long out_frames = (long)(ma_frames * ratio) + 1;
+                float* rs = new float[out_frames * ma_ch];
+                SRC_DATA sd{};
+                sd.data_in = ma_data; sd.input_frames = ma_frames;
+                sd.data_out = rs; sd.output_frames = out_frames;
+                sd.src_ratio = ratio; sd.end_of_input = 1;
+                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ma_ch);
+                if (err) { delete[] ma_data; delete[] rs; return ""; }
+                delete[] ma_data;
+                snd.data = rs;
+                snd.frame_count = sd.output_frames_gen;
+                snd.sample_rate = (unsigned int)target_sample_rate;
+            }
+            snd.resampler = nullptr;
+            snd.resample_buffer = nullptr;
+            {
+                std::unique_lock<std::shared_mutex> guard(rw_lock);
+                sounds[name] = snd;
+            }
+            spdlog::debug("Loaded sound (miniaudio): {} ({} frames, {} Hz, {} ch)",
+                          name, snd.frame_count, snd.sample_rate, snd.channels);
+            return name;
 #else
             spdlog::error("Failed to open sound file: {} - {}", file_path.string(), sf_strerror(NULL));
             return "";
@@ -943,6 +1016,59 @@ std::string AudioEngine::load_music_stream(const fs::path& file_path, const std:
             }
             spdlog::debug("Loaded music stream (ffmpeg): {} ({} frames, {} Hz, {} ch)",
                           name, ff_frames, ff_rate, ff_ch);
+            return name;
+#elif defined(__EMSCRIPTEN__)
+            float* ma_data = nullptr;
+            sf_count_t ma_frames = 0;
+            unsigned int ma_rate = 0, ma_ch = 0;
+            std::string path_str2 = path_to_string(file_path);
+            if (!miniaudio_decode_float(path_str2.c_str(), &ma_data, &ma_frames, &ma_rate, &ma_ch)) {
+                spdlog::error("Failed to open music file: {} - {} (miniaudio fallback also failed)",
+                              file_path.string(), sf_strerror(NULL));
+                return "";
+            }
+
+            if ((double)ma_rate != target_sample_rate) {
+                double ratio = target_sample_rate / (double)ma_rate;
+                long out_frames = (long)(ma_frames * ratio) + 1;
+                float* rs = new float[out_frames * ma_ch];
+                SRC_DATA sd{};
+                sd.data_in = ma_data; sd.input_frames = ma_frames;
+                sd.data_out = rs; sd.output_frames = out_frames;
+                sd.src_ratio = ratio; sd.end_of_input = 1;
+                int err = src_simple(&sd, SRC_SINC_FASTEST, (int)ma_ch);
+                if (err) { delete[] ma_data; delete[] rs; return ""; }
+                delete[] ma_data;
+                ma_data = rs;
+                ma_frames = sd.output_frames_gen;
+                ma_rate = (unsigned int)target_sample_rate;
+            }
+
+            music mus{};
+            mus.file_handle = nullptr;
+            mus.file_info.channels = (int)ma_ch;
+            mus.file_info.samplerate = (int)ma_rate;
+            mus.file_path = file_path.string();
+            mus.pcm_data = ma_data;
+            mus.pcm_total_frames = ma_frames;
+            mus.buffer_size = 4096;
+            mus.stream_buffer = new float[mus.buffer_size * ma_ch];
+            mus.buffer_position = 0;
+            mus.frames_in_buffer = 0;
+            mus.is_playing = false;
+            mus.current_frame = 0;
+            mus.loop = false;
+            mus.volume = 1.0f;
+            mus.pan = 0.5f;
+            mus.pitch = 1.0f;
+            mus.resampler = nullptr;
+            mus.resample_buffer = nullptr;
+            {
+                std::unique_lock<std::shared_mutex> guard(rw_lock);
+                music_streams[name] = mus;
+            }
+            spdlog::debug("Loaded music stream (miniaudio): {} ({} frames, {} Hz, {} ch)",
+                          name, ma_frames, ma_rate, ma_ch);
             return name;
 #else
             spdlog::error("Failed to open music file: {} - {}", file_path.string(), sf_strerror(NULL));

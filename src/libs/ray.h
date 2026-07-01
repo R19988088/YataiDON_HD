@@ -42,7 +42,19 @@ inline ray::Shader load_shader(const char* vs_path, const char* fs_path) {
         vs_src.empty() ? nullptr : vs_src.c_str(),
         fs_src.empty() ? nullptr : fs_src.c_str()
     );
-#else
-    return ray::LoadShader(vs_path, fs_path);
 #endif
+#ifdef __EMSCRIPTEN__
+    auto repath = [](const char* p) -> std::string {
+        if (!p) return "";
+        std::string s(p);
+        const std::string prefix = "shader/";
+        if (s.size() >= prefix.size() && s.substr(0, prefix.size()) == prefix)
+            s.insert(prefix.size(), "es/");
+        return s;
+    };
+    std::string vs_repath = vs_path ? repath(vs_path) : std::string{};
+    std::string fs_repath = fs_path ? repath(fs_path) : std::string{};
+    return ray::LoadShader(vs_repath.c_str(), fs_repath.c_str());
+#endif
+    return ray::LoadShader(vs_path, fs_path);
 }
