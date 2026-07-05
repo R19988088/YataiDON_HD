@@ -662,7 +662,7 @@ void Player::handle_scroll_type_commands(double ms_from_start, const TimelineObj
     }
 
     if (timeline_object.delay.has_value()) {
-        if (delay_start.has_value()) {
+        if (!delay_start.has_value()) {
             delay_start = timeline_object.start_time;
             delay_end = timeline_object.start_time + timeline_object.delay.value();
         } else {
