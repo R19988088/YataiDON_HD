@@ -1,6 +1,38 @@
 #include "texture.h"
 #include "filesystem.h"
+#include <cmath>
 #include <spdlog/spdlog.h>
+
+void TextureWrapper::set_target_resolution(int width, int height) {
+    target_screen_width = width > 0 ? width : 1920;
+    target_screen_height = height > 0 ? height : 1080;
+}
+
+static void scale_animation_positions(Value& anim_config, float scale) {
+    if (!anim_config.IsArray()) return;
+
+    for (SizeType i = 0; i < anim_config.Size(); i++) {
+        Value& anim = anim_config[i];
+        if (anim.HasMember("total_distance") && !anim["total_distance"].IsObject()) {
+            if (anim["total_distance"].IsInt()) {
+                int val = anim["total_distance"].GetInt();
+                anim["total_distance"].SetInt(static_cast<int>(val * scale));
+            } else if (anim["total_distance"].IsDouble()) {
+                double val = anim["total_distance"].GetDouble();
+                anim["total_distance"].SetDouble(val * scale);
+            }
+        }
+        if (anim.HasMember("start_position") && !anim["start_position"].IsObject()) {
+            if (anim["start_position"].IsInt()) {
+                int val = anim["start_position"].GetInt();
+                anim["start_position"].SetInt(static_cast<int>(val * scale));
+            } else if (anim["start_position"].IsDouble()) {
+                double val = anim["start_position"].GetDouble();
+                anim["start_position"].SetDouble(val * scale);
+            }
+        }
+    }
+}
 
 void TextureWrapper::init(const fs::path& skin_path) {
     graphics_path = skin_path;
@@ -12,15 +44,25 @@ void TextureWrapper::init(const fs::path& skin_path) {
     parent_graphics_path = graphics_path;
     auto skin_config_file = read_json_file(graphics_path / "skin_config.json");
 
-    // Derive screen dimensions from child config first so screen_scale is known.
+    // Keep skin coordinates in one virtual space. A 720p skin is scaled to the
+    // target logical resolution, while the actual display is handled by camera.
     {
-        float w = skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("width")
-                      ? skin_config_file["screen"]["width"].GetFloat() : 1280.0f;
-        float h = skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("height")
-                      ? skin_config_file["screen"]["height"].GetFloat() : 720.0f;
-        screen_width  = static_cast<int>(w);
-        screen_height = static_cast<int>(h);
-        screen_scale  = w / 1280.0f;
+        float skin_w = skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("width")
+                           ? skin_config_file["screen"]["width"].GetFloat() : 1280.0f;
+        float skin_h = skin_config_file.HasMember("screen") && skin_config_file["screen"].HasMember("height")
+                           ? skin_config_file["screen"]["height"].GetFloat() : 720.0f;
+        if (skin_w <= 0.0f) skin_w = 1280.0f;
+        if (skin_h <= 0.0f) skin_h = 720.0f;
+
+        screen_width = target_screen_width;
+        screen_height = target_screen_height;
+        screen_scale = static_cast<float>(screen_width) / skin_w;
+
+        float expected_h = skin_h * screen_scale;
+        if (std::abs(expected_h - static_cast<float>(screen_height)) > 1.0f) {
+            spdlog::warn("Skin aspect ratio {}x{} does not match target {}x{}; using width-based UI scale {}",
+                         skin_w, skin_h, screen_width, screen_height, screen_scale);
+        }
     }
 
     // Load parent skin_config first so child values override.
@@ -56,11 +98,11 @@ void TextureWrapper::init(const fs::path& skin_path) {
         SC key = skin_config_map.at(m.name.GetString());
         const Value& v = m.value;
 
-        float x = v.HasMember("x") ? v["x"].GetFloat() : 0;
-        float y = v.HasMember("y") ? v["y"].GetFloat() : 0;
-        int font_size = v.HasMember("font_size") ? v["font_size"].GetInt() : 0;
-        float width = v.HasMember("width") ? v["width"].GetFloat() : 0;
-        float height = v.HasMember("height") ? v["height"].GetFloat() : 0;
+        float x = (v.HasMember("x") ? v["x"].GetFloat() : 0) * screen_scale;
+        float y = (v.HasMember("y") ? v["y"].GetFloat() : 0) * screen_scale;
+        int font_size = static_cast<int>((v.HasMember("font_size") ? v["font_size"].GetInt() : 0) * screen_scale);
+        float width = (v.HasMember("width") ? v["width"].GetFloat() : 0) * screen_scale;
+        float height = (v.HasMember("height") ? v["height"].GetFloat() : 0) * screen_scale;
 
         std::map<std::string, std::string> text_map;
         if (v.HasMember("text") && v["text"].IsObject()) {
@@ -121,27 +163,13 @@ BaseAnimation* TextureWrapper::get_animation(const int id, const std::string& sc
         fs::path parent_anim_file   = parent_screen_path / "animation.json";
 
         if (fs::exists(anim_file)) {
+            auto anim_config = read_json_file(anim_file);
+            scale_animation_positions(anim_config, screen_scale);
             AnimationParser parser;
-            screen_animations[screen_name] = parser.parse_animations(read_json_file(anim_file));
+            screen_animations[screen_name] = parser.parse_animations(anim_config);
         } else if (parent_graphics_path != graphics_path && fs::exists(parent_anim_file)) {
             auto anim_config = read_json_file(parent_anim_file);
-            if (anim_config.IsArray()) {
-                for (SizeType i = 0; i < anim_config.Size(); i++) {
-                    auto& anim = anim_config[i];
-                    if (anim.HasMember("total_distance") && !anim["total_distance"].IsObject()) {
-                        if (anim["total_distance"].IsInt())
-                            anim["total_distance"].SetInt(static_cast<int>(anim["total_distance"].GetInt() * screen_scale));
-                        else if (anim["total_distance"].IsDouble())
-                            anim["total_distance"].SetDouble(anim["total_distance"].GetDouble() * screen_scale);
-                    }
-                    if (anim.HasMember("start_position") && !anim["start_position"].IsObject()) {
-                        if (anim["start_position"].IsInt())
-                            anim["start_position"].SetInt(static_cast<int>(anim["start_position"].GetInt() * screen_scale));
-                        else if (anim["start_position"].IsDouble())
-                            anim["start_position"].SetDouble(anim["start_position"].GetDouble() * screen_scale);
-                    }
-                }
-            }
+            scale_animation_positions(anim_config, screen_scale);
             AnimationParser parser;
             screen_animations[screen_name] = parser.parse_animations(anim_config);
         } else {
@@ -267,6 +295,8 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
     if (fs::exists(anim_file)) {
         auto anim_config = read_json_file(anim_file);
 
+        scale_animation_positions(anim_config, screen_scale);
+
         AnimationParser parser;
         animations = parser.parse_animations(anim_config);
         spdlog::info("Animations loaded for screen: {}", screen_name);
@@ -274,29 +304,7 @@ void TextureWrapper::load_animations(const std::string& screen_name) {
         auto anim_config = read_json_file(parent_anim_file);
 
         // Scale total_distance values
-        if (anim_config.IsArray()) {
-            for (SizeType i = 0; i < anim_config.Size(); i++) {
-                Value& anim = anim_config[i];
-                if (anim.HasMember("total_distance") && !anim["total_distance"].IsObject()) {
-                    if (anim["total_distance"].IsInt()) {
-                        int val = anim["total_distance"].GetInt();
-                        anim["total_distance"].SetInt(static_cast<int>(val * screen_scale));
-                    } else if (anim["total_distance"].IsDouble()) {
-                        double val = anim["total_distance"].GetDouble();
-                        anim["total_distance"].SetDouble(val * screen_scale);
-                    }
-                }
-                if (anim.HasMember("start_position") && !anim["start_position"].IsObject()) {
-                    if (anim["start_position"].IsInt()) {
-                        int val = anim["start_position"].GetInt();
-                        anim["start_position"].SetInt(static_cast<int>(val * screen_scale));
-                    } else if (anim["start_position"].IsDouble()) {
-                        double val = anim["start_position"].GetDouble();
-                        anim["start_position"].SetDouble(val * screen_scale);
-                    }
-                }
-            }
-        }
+        scale_animation_positions(anim_config, screen_scale);
 
         AnimationParser parser;
         animations = parser.parse_animations(anim_config);

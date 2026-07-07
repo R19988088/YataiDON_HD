@@ -118,6 +118,8 @@ private:
     fs::path graphics_path;
     fs::path parent_graphics_path;
     std::unordered_set<std::string> loaded_subsets;
+    int target_screen_width = 1920;
+    int target_screen_height = 1080;
 
 public:
     std::unordered_map<uint32_t, std::shared_ptr<TextureObject>> textures;
@@ -130,8 +132,10 @@ public:
     float draw_offset_x = 0.0f;
     float draw_offset_y = 0.0f;
 
-    TextureWrapper() : screen_width(1280), screen_height(720), screen_scale(1.0) {
+    TextureWrapper() : screen_width(1920), screen_height(1080), screen_scale(1.5) {
     }
+
+    void set_target_resolution(int width, int height);
 
     void init(const fs::path& skin_path);
 

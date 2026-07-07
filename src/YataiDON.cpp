@@ -269,6 +269,8 @@ int main(int argc, char* argv[]) {
 
     fs::path root_skin_path = fs::path("Skins") / global_data.config->paths.skin;
 
+    tex.set_target_resolution(global_data.config->video.width, global_data.config->video.height);
+    global_tex.set_target_resolution(global_data.config->video.width, global_data.config->video.height);
     tex.init(root_skin_path / "Graphics");
 
 #ifdef PLATFORM_ANDROID

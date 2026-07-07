@@ -81,6 +81,8 @@ struct VolumeConfig {
 struct VideoConfig {
     bool fullscreen;
     bool borderless;
+    int width;
+    int height;
     int target_fps;
     bool vsync;
 };

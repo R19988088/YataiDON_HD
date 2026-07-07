@@ -61,6 +61,8 @@ tja_path = [ 'Songs' ]
 [video]
 borderless = false
 fullscreen = false
+width = 1920
+height = 1080
 target_fps = -1
 vsync = false
 
