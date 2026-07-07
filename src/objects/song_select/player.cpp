@@ -85,6 +85,41 @@ void SongSelectPlayer::start_background_diffs() {
     selected_diff_highlight_fade->start();
 }
 
+void SongSelectPlayer::apply_preferred_difficulty(SongBox* song) {
+    curr_diffs = song->get_diffs();
+    if (curr_diffs.empty()) {
+        selected_difficulty = Difficulty::BACK;
+        prev_diff = selected_difficulty;
+        is_ura = false;
+        song->is_ura = false;
+        return;
+    }
+
+    Difficulty preferred = Difficulty(global_data.preferred_difficulty[(int)player_num]);
+    auto has_diff = [this](Difficulty diff) {
+        return std::find(curr_diffs.begin(), curr_diffs.end(), diff) != curr_diffs.end();
+    };
+
+    if (has_diff(preferred)) {
+        selected_difficulty = preferred;
+    } else if (preferred == Difficulty::URA && has_diff(Difficulty::ONI)) {
+        selected_difficulty = Difficulty::ONI;
+    } else if (has_diff(Difficulty::ONI)) {
+        selected_difficulty = Difficulty::ONI;
+    } else {
+        selected_difficulty = curr_diffs.front();
+        for (Difficulty diff : curr_diffs) {
+            if (diff <= Difficulty::ONI) {
+                selected_difficulty = diff;
+            }
+        }
+    }
+
+    prev_diff = selected_difficulty;
+    is_ura = selected_difficulty == Difficulty::URA;
+    song->is_ura = is_ura;
+}
+
 SongSelectState SongSelectPlayer::select_song() {
     audio.play_sound("don", VolumePreset::SOUND);
     BaseBox* item = navigator.get_current_item();
@@ -94,7 +129,7 @@ SongSelectState SongSelectPlayer::select_song() {
         navigator.enter_diff_select();
         selected_song = true;
         SongBox* song_item = (SongBox*)item;
-        curr_diffs = song_item->get_diffs();
+        apply_preferred_difficulty(song_item);
         selected_diff_bounce->start();
         selected_diff_fadein->start();
         return SongSelectState::SONG_SELECTED;

@@ -8,7 +8,7 @@ void SongSelect2PScreen::on_screen_start() {
 
 static void init_player_diffs(SongSelectPlayer* p, SongBox* song) {
     p->selected_song = true;
-    p->curr_diffs = song->get_diffs();
+    p->apply_preferred_difficulty(song);
     p->selected_diff_bounce->start();
     p->selected_diff_fadein->start();
 }
@@ -47,12 +47,14 @@ void SongSelect2PScreen::select_song(SongBox* song) {
     auto& sd1 = global_data.session_data[(int)PlayerNum::P1];
     sd1.selected_song = song->path;
     sd1.selected_difficulty = (int)player->selected_difficulty;
+    global_data.preferred_difficulty[(int)PlayerNum::P1] = sd1.selected_difficulty;
     sd1.song_hash = song->hashes[sd1.selected_difficulty];
     sd1.genre_index = (int)song->genre_index - 1;
 
     auto& sd2 = global_data.session_data[(int)PlayerNum::P2];
     sd2.selected_song = song->path;
     sd2.selected_difficulty = (int)player_2->selected_difficulty;
+    global_data.preferred_difficulty[(int)PlayerNum::P2] = sd2.selected_difficulty;
     sd2.song_hash = song->hashes[sd2.selected_difficulty];
     sd2.genre_index = (int)song->genre_index - 1;
 

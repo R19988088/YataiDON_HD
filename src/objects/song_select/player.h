@@ -52,6 +52,7 @@ public:
     void draw_selector(bool is_half, float fade_in);
     void draw_background_diffs(SongSelectState state);
     void draw(SongSelectState state, bool is_half, float diff_fade_in);
+    void apply_preferred_difficulty(SongBox* song);
 
 private:
     bool voice_played;

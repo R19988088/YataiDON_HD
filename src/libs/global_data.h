@@ -147,11 +147,13 @@ struct GlobalData {
     int input_locked = 0;
     bool open_entry_costume = false;
     bool return_to_settings_after_costume = false;
+    std::vector<int> preferred_difficulty = std::vector<int>(3, (int)Difficulty::ONI);
     std::vector<SessionData> session_data = std::vector<SessionData>(3);
 
     GlobalData() {
         // Initialize vectors with default-constructed elements
         session_data.resize(3);
+        preferred_difficulty.resize(3, (int)Difficulty::ONI);
     }
 };
 
