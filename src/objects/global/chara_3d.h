@@ -122,6 +122,7 @@ private:
     int outline_pass_thickness_loc = -1;
 
     void set_texture(fs::path& texture_path, int material_index);
+    float draw_scale() const;
     void load_face_textures(fs::path& face_dir);
     void load_face_anims(fs::path& anim_path);
     void draw_outline(float x, float y);

@@ -121,7 +121,7 @@ Chara3D::Chara3D(std::string& model_name, bool mirror) {
     outline_pass_shader = load_shader("shader/pass.vs", "shader/outline_pass.fs");
     outline_pass_size_loc = ray::GetShaderLocation(outline_pass_shader, "texSize");
     outline_pass_thickness_loc = ray::GetShaderLocation(outline_pass_shader, "outlineThickness");
-    float outline_thickness = 3.0f;
+    float outline_thickness = 3.0f * tex.screen_scale;
     ray::SetShaderValue(outline_pass_shader, outline_pass_thickness_loc, &outline_thickness, ray::SHADER_UNIFORM_FLOAT);
 
     null_shader    = load_shader(nullptr, "shader/null.fs");
@@ -208,6 +208,10 @@ void Chara3D::set_texture(fs::path& texture_path, int material_index) {
     int map_type = ray::MATERIAL_MAP_DIFFUSE;
     ray::SetMaterialTexture(&cos_model.materials[material_index], map_type, tex);
     render_dirty = true;
+}
+
+float Chara3D::draw_scale() const {
+    return scale * tex.screen_scale;
 }
 
 void Chara3D::set_body_texture(fs::path& texture_path) {
@@ -407,7 +411,7 @@ void Chara3D::draw_outline(float x, float y) {
     cos_model.transform = rotation_xyz(rot_x * DEG2RAD, y_angle * DEG2RAD, rot_z * DEG2RAD);
 
     rlSetCullFace(RL_CULL_FACE_FRONT);
-    ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
+    ray::DrawModel(cos_model, {x, y, 400.0f}, draw_scale(), ray::WHITE);
     rlSetCullFace(RL_CULL_FACE_BACK);
 
     cos_model.transform = saved_transform;
@@ -419,7 +423,7 @@ void Chara3D::draw_3d(float x, float y) {
     ray::Matrix saved = cos_model.transform;
     float y_angle = mirror ? -rot_y : rot_y;
     cos_model.transform = rotation_xyz(rot_x * DEG2RAD, y_angle * DEG2RAD, rot_z * DEG2RAD);
-    ray::DrawModel(cos_model, {x, y, 400.0f}, scale, ray::WHITE);
+    ray::DrawModel(cos_model, {x, y, 400.0f}, draw_scale(), ray::WHITE);
     cos_model.transform = saved;
 }
 
