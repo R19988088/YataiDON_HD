@@ -49,11 +49,13 @@ android {
     // Copy runtime assets from repo root into the APK.
     def generatedAssetsDir = layout.buildDirectory.dir('generated/yataidon_assets')
     def configSrcFile = rootProject.file('../config.toml')
+    def zhFontSrcFile = rootProject.file('../FZPangWaUltra-Regular.ttf')
     def shaderSrcDir = rootProject.file('../shader/es')
 
     task copyYataiDONAssets(type: Copy) {
         into generatedAssetsDir
         from(configSrcFile)
+        from(zhFontSrcFile)
         from(shaderSrcDir) {
             into 'shader/es'
         }

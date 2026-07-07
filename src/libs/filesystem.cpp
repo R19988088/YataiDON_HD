@@ -98,6 +98,18 @@ void ensure_android_default_config() {
         spdlog::error("config.toml is missing and the bundled default could not be copied");
     }
 }
+
+void ensure_android_asset_file(const char* filename) {
+    std::error_code ec;
+    if (fs::exists(filename, ec))
+        return;
+
+    if (copy_android_asset_to_file(filename, filename)) {
+        spdlog::info("Created {}", filename);
+    } else {
+        spdlog::warn("{} is missing and the bundled asset could not be copied", filename);
+    }
+}
 }
 #endif
 
@@ -111,6 +123,7 @@ void set_working_directory_to_executable() {
     for (const fs::path& candidate : candidates) {
         if (switch_to_writable_directory(candidate)) {
             ensure_android_default_config();
+            ensure_android_asset_file("FZPangWaUltra-Regular.ttf");
             return;
         }
     }

@@ -102,6 +102,7 @@ jobs:
           cp -r shader release/YataiDON-Linux/
           cp -r Songs release/YataiDON-Linux/
           cp config.toml release/YataiDON-Linux/
+          cp FZPangWaUltra-Regular.ttf release/YataiDON-Linux/
           cp update.sh release/YataiDON-Linux/
           chmod +x release/YataiDON-Linux/YataiDON release/YataiDON-Linux/update.sh
 
@@ -135,7 +136,7 @@ jobs:
           # Checksums — binary + updater + shader + lib
           (
             cd release/YataiDON-Linux
-            sha256sum YataiDON update.sh
+            sha256sum YataiDON update.sh FZPangWaUltra-Regular.ttf
             find shader -type f | sort | xargs sha256sum
             [ -d lib ] && find lib -type f | sort | xargs sha256sum || true
           ) > release/YataiDON-Linux/checksums-linux.sha256
@@ -222,12 +223,13 @@ jobs:
           cp -r shader release/YataiDON-Windows/
           cp -r Songs release/YataiDON-Windows/
           cp config.toml release/YataiDON-Windows/
+          cp FZPangWaUltra-Regular.ttf release/YataiDON-Windows/
           cp update.ps1 update.bat release/YataiDON-Windows/
 
           # Checksums — binary + updater + dlls + shader
           (
             cd release/YataiDON-Windows
-            sha256sum YataiDON.exe update.ps1 update.bat
+            sha256sum YataiDON.exe update.ps1 update.bat FZPangWaUltra-Regular.ttf
             find shader -type f | sort | xargs sha256sum
             find . -maxdepth 1 -name "*.dll" | sort | xargs sha256sum
           ) > release/YataiDON-Windows/checksums-windows.sha256
@@ -308,6 +310,7 @@ jobs:
           cp -r shader release/YataiDON-macOS/
           cp -r Songs release/YataiDON-macOS/
           cp config.toml release/YataiDON-macOS/
+          cp FZPangWaUltra-Regular.ttf release/YataiDON-macOS/
           cp update.sh release/YataiDON-macOS/
           chmod +x release/YataiDON-macOS/YataiDON release/YataiDON-macOS/update.sh
 
@@ -321,7 +324,7 @@ jobs:
           # Checksums — binary + updater + shader + lib
           (
             cd release/YataiDON-macOS
-            shasum -a 256 YataiDON update.sh
+            shasum -a 256 YataiDON update.sh FZPangWaUltra-Regular.ttf
             find shader -type f | sort | xargs shasum -a 256
             [ -d lib ] && find lib -type f | sort | xargs shasum -a 256 || true
           ) > release/YataiDON-macOS/checksums-macos.sha256

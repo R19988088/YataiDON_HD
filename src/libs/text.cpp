@@ -1,17 +1,42 @@
 #include "text.h"
+#include "global_data.h"
 #include <math.h>
 
-FontManager::FontManager() {}
+FontManager::FontManager() : font({}), max_font_size(100) {}
 
 void FontManager::init(const fs::path& font_path) {
     std::lock_guard<std::mutex> lock(font_mutex);
-    this->font_path = font_path;
+    base_font_path = font_path;
+    zh_font_path = fs::path("FZPangWaUltra-Regular.ttf");
+    select_font_path();
     for (int i = 32; i < 127; i++)
         codepoint_cache.insert(i);
-    std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
-    if (!exists(font_path)) {
-        throw std::runtime_error("Failed to load font: " + font_path.string());
+    if (!exists(this->font_path)) {
+        throw std::runtime_error("Failed to load font: " + this->font_path.string());
     }
+    reload_font_locked();
+}
+
+void FontManager::select_font_path() {
+    fs::path next_path = base_font_path;
+    if (global_data.config
+        && global_data.config->general.language == "zh"
+        && fs::exists(zh_font_path)) {
+        next_path = zh_font_path;
+    }
+    if (font_path != next_path) {
+        font_path = next_path;
+        codepoint_cache.clear();
+        for (int i = 32; i < 127; i++)
+            codepoint_cache.insert(i);
+    }
+}
+
+void FontManager::reload_font_locked() {
+    if (font.texture.id > 0) {
+        ray::UnloadFont(font);
+    }
+    std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
     font = ray::LoadFontEx(font_path.string().c_str(), max_font_size,
                            codepoints.data(), (int)codepoints.size());
     ray::SetTextureFilter(font.texture, ray::TEXTURE_FILTER_BILINEAR);
@@ -43,6 +68,9 @@ ray::Font FontManager::get_font(const std::string& text, int font_size) {
     std::lock_guard<std::mutex> lock(font_mutex);
 
     bool reload = false;
+    fs::path old_font_path = font_path;
+    select_font_path();
+    if (font_path != old_font_path) reload = true;
 
     const char* ptr = text.c_str();
     while (*ptr) {
@@ -61,11 +89,7 @@ ray::Font FontManager::get_font(const std::string& text, int font_size) {
     }
 
     if (reload) {
-        ray::UnloadFont(font);
-        std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
-        font = ray::LoadFontEx(font_path.string().c_str(), max_font_size,
-                               codepoints.data(), (int)codepoints.size());
-        ray::SetTextureFilter(font.texture, ray::TEXTURE_FILTER_BILINEAR);
+        reload_font_locked();
     }
 
     return font;
@@ -75,6 +99,10 @@ ray::Font FontManager::copy_font(const std::string& text, int font_size) {
     std::lock_guard<std::mutex> lock(font_mutex);
 
     bool reload = false;
+    fs::path old_font_path = font_path;
+    select_font_path();
+    if (font_path != old_font_path) reload = true;
+
     const char* ptr = text.c_str();
     while (*ptr) {
         int cp_size = 0;
@@ -90,11 +118,7 @@ ray::Font FontManager::copy_font(const std::string& text, int font_size) {
         max_font_size = font_size;
     }
     if (reload) {
-        ray::UnloadFont(font);
-        std::vector<int> codepoints(codepoint_cache.begin(), codepoint_cache.end());
-        font = ray::LoadFontEx(font_path.string().c_str(), max_font_size,
-                               codepoints.data(), (int)codepoints.size());
-        ray::SetTextureFilter(font.texture, ray::TEXTURE_FILTER_BILINEAR);
+        reload_font_locked();
     }
 
     return deep_copy_font(font);

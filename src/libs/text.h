@@ -6,10 +6,14 @@
 class FontManager {
 private:
     fs::path font_path;
+    fs::path base_font_path;
+    fs::path zh_font_path;
     ray::Font font;
     int max_font_size;
     std::unordered_set<int> codepoint_cache;
     mutable std::mutex font_mutex;
+    void select_font_path();
+    void reload_font_locked();
 public:
     FontManager();
     void init(const fs::path& font_path);
