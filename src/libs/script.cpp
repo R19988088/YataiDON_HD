@@ -50,6 +50,20 @@ static DrawTextureParams parse_draw_params(sol::optional<sol::table> params_tabl
     return params;
 }
 
+static auto find_localized_texture_id(const std::string& subset, const std::string& texture_name) {
+    auto it = tex_id_map.find(subset + "/" + texture_name);
+    if (it != tex_id_map.end()) return it;
+
+    const std::string base_key = subset + "/" + texture_name + "_";
+    it = tex_id_map.find(base_key + global_data.config->general.language);
+    if (it != tex_id_map.end()) return it;
+
+    it = tex_id_map.find(base_key + "en");
+    if (it != tex_id_map.end()) return it;
+
+    return tex_id_map.find(base_key + "ja");
+}
+
 void ScriptManager::init(fs::path script_path) {
     lua = std::make_unique<sol::state>();
     lua->open_libraries(sol::lib::base, sol::lib::package, sol::lib::string,
@@ -381,9 +395,7 @@ void ScriptManager::register_lua_bindings() {
     });
 
     tex.set_function("get_id", [](const std::string& subset, const std::string& texture_name) -> sol::optional<uint32_t> {
-        auto it = tex_id_map.find(subset + "/" + texture_name);
-        if (it != tex_id_map.end()) return it->second;
-        it = tex_id_map.find(subset + "/" + texture_name + "_" + global_data.config->general.language);
+        auto it = find_localized_texture_id(subset, texture_name);
         if (it != tex_id_map.end()) return it->second;
         return std::nullopt;
     });
@@ -405,9 +417,7 @@ void ScriptManager::register_lua_bindings() {
 
         script_manager.tex.load_folder(screen_name, subset);
 
-        auto it = tex_id_map.find(subset + "/" + texture_name);
-        if (it != tex_id_map.end()) return static_cast<uint32_t>(it->second);
-        it = tex_id_map.find(subset + "/" + texture_name + "_" + global_data.config->general.language);
+        auto it = find_localized_texture_id(subset, texture_name);
         if (it != tex_id_map.end()) return static_cast<uint32_t>(it->second);
         return sol::nullopt;
     });
