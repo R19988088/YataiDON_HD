@@ -3,6 +3,9 @@ name: Build YataiDON (Release)
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     name: Build on Linux
