@@ -103,6 +103,11 @@ void EntryPlayer::handle_input() {
             if (auto pd = scores_manager.get_player_data(player_id)) {
                 pd->chara_cos_index = std::stoi(costume_menu->get_costume_name());
                 scores_manager.save_player_data(*pd);
+                if (player_id == scores_manager.player_1) {
+                    scores_manager.player_1_data = *pd;
+                } else if (player_id == scores_manager.player_2) {
+                    scores_manager.player_2_data = *pd;
+                }
             }
             costume_menu.reset();
             audio.play_sound("costume_select_" + std::to_string((int)player_num) + "p", VolumePreset::SOUND);

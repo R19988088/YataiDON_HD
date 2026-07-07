@@ -140,13 +140,11 @@ jobs:
             [ -d lib ] && find lib -type f | sort | xargs sha256sum || true
           ) > release/YataiDON-Linux/checksums-linux.sha256
 
-          (cd release/YataiDON-Linux && zip -r ../YataiDON-Linux.zip .)
-
       - name: Upload Linux package
         uses: actions/upload-artifact@v4
         with:
-          name: YataiDON-Linux.zip
-          path: release/YataiDON-Linux.zip
+          name: YataiDON-Linux
+          path: release/YataiDON-Linux/
           if-no-files-found: error
 
   build-windows:
@@ -234,13 +232,11 @@ jobs:
             find . -maxdepth 1 -name "*.dll" | sort | xargs sha256sum
           ) > release/YataiDON-Windows/checksums-windows.sha256
 
-          powershell.exe -NoProfile -Command "Compress-Archive -Path 'release/YataiDON-Windows/*' -DestinationPath 'release/YataiDON-Windows.zip' -Force"
-
       - name: Upload Windows package
         uses: actions/upload-artifact@v4
         with:
-          name: YataiDON-Windows.zip
-          path: release/YataiDON-Windows.zip
+          name: YataiDON-Windows
+          path: release/YataiDON-Windows/
           if-no-files-found: error
 
   build-macos:
@@ -514,11 +510,12 @@ jobs:
         with:
           pattern: YataiDON-*
           path: release-assets/
-          merge-multiple: true
 
       - name: Package release assets
         run: |
-          find release-assets -maxdepth 1 -type f -name 'YataiDON-*' -print -exec cp {} . \;
+          (cd release-assets/YataiDON-Linux && zip -r ../../YataiDON-Linux.zip .)
+          (cd release-assets/YataiDON-Windows && zip -r ../../YataiDON-Windows.zip .)
+          find release-assets -type f \( -name 'YataiDON-macOS.dmg' -o -name 'YataiDON-Android*.apk' \) -print -exec cp {} . \;
           sha256sum YataiDON-* > checksums-release.sha256
 
       - name: Upload Release

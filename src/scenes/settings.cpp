@@ -184,7 +184,7 @@ std::optional<Screens> SettingsScreen::handle_input() {
         audio.play_sound("don", VolumePreset::SOUND);
         bool result = box_manager->select_box();
         if (result) {
-            return on_screen_end(Screens::ENTRY);
+            return on_screen_end(Screens::TITLE);
         }
     }
     return std::nullopt;

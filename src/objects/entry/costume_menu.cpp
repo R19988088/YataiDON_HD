@@ -88,7 +88,8 @@ void CostumeMenu::open_costume_select() {
 
 std::optional<int> CostumeMenu::get_index() {
     if (!costume_select_mode) return std::nullopt;
-    return costume_icon_index;
+    if (costume_ids.empty()) return std::nullopt;
+    return costume_ids[costume_icon_index];
 }
 
 std::string CostumeMenu::get_costume_name() const {
