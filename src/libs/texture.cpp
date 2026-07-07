@@ -468,12 +468,23 @@ void TextureWrapper::clear_screen(const ray::Color& color) {
     ray::ClearBackground(color);
 }
 TexID TextureWrapper::get_enum(const std::string& name) {
-    try {
-        return tex_id_map.at(name);
-    } catch (const std::out_of_range& e) {
-        spdlog::warn("Texture not found: {}", name);
-        return TexID::KIDOU__WARNING;
+    auto it = tex_id_map.find(name);
+    if (it != tex_id_map.end()) return it->second;
+
+    size_t slash_pos = name.rfind('/');
+    size_t suffix_pos = name.rfind('_');
+    if (suffix_pos != std::string::npos
+        && (slash_pos == std::string::npos || suffix_pos > slash_pos)) {
+        std::string base_name = name.substr(0, suffix_pos + 1);
+        it = tex_id_map.find(base_name + "ja");
+        if (it != tex_id_map.end()) return it->second;
+
+        it = tex_id_map.find(base_name + "en");
+        if (it != tex_id_map.end()) return it->second;
     }
+
+    spdlog::warn("Texture not found: {}", name);
+    return TexID::KIDOU__WARNING;
 }
 
 void TextureWrapper::draw_texture(uint32_t id, const DrawTextureParams& params) {

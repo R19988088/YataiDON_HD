@@ -58,10 +58,10 @@ static auto find_localized_texture_id(const std::string& subset, const std::stri
     it = tex_id_map.find(base_key + global_data.config->general.language);
     if (it != tex_id_map.end()) return it;
 
-    it = tex_id_map.find(base_key + "en");
+    it = tex_id_map.find(base_key + "ja");
     if (it != tex_id_map.end()) return it;
 
-    return tex_id_map.find(base_key + "ja");
+    return tex_id_map.find(base_key + "en");
 }
 
 void ScriptManager::init(fs::path script_path) {
