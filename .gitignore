@@ -17,6 +17,7 @@ YataiDON.exe
 /android/local.properties
 /android/keystore.properties
 /android/yataidon-release.jks
+!/android/yataidon-ci-release.jks
 /android/.gradle/
 /android/app/.cxx/
 /build-android-arm64

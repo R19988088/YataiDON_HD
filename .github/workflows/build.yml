@@ -421,8 +421,13 @@ jobs:
           KEY_PASSWORD="${{ secrets.ANDROID_KEY_PASSWORD }}"
 
           if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ] || [ -z "$STORE_PASSWORD" ]; then
-            echo "::warning::Android release signing secrets are missing; building an unsigned release APK."
-            rm -f android/keystore.properties android/yataidon-release.jks
+            echo "::warning::Android release signing secrets are missing; using the fixed CI release keystore."
+            printf 'storeFile=yataidon-ci-release.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\nstoreType=%s\n' \
+              "yataidon-ci-release" \
+              "yataidon-ci" \
+              "yataidon-ci-release" \
+              "jks" \
+              > android/keystore.properties
             exit 0
           fi
 
@@ -436,9 +441,8 @@ jobs:
               | awk -F': ' '/Alias name:/{print $2; exit}')"
           fi
           if [ -z "$KEY_ALIAS" ]; then
-            echo "::warning::ANDROID_KEY_ALIAS is empty and no alias could be read from the release keystore; building an unsigned release APK."
-            rm -f android/keystore.properties android/yataidon-release.jks
-            exit 0
+            echo "::error::ANDROID_KEY_ALIAS is empty and no alias could be read from the release keystore."
+            exit 1
           fi
           if [ -z "$KEY_PASSWORD" ]; then
             KEY_PASSWORD="$STORE_PASSWORD"
@@ -463,12 +467,8 @@ jobs:
           if [ -f app/build/outputs/apk/release/app-release.apk ]; then
             cp app/build/outputs/apk/release/app-release.apk android-apk/YataiDON-Android.apk
             echo "artifact_name=YataiDON-Android.apk" >> "$GITHUB_OUTPUT"
-          elif [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
-            echo "::warning::Uploading unsigned Android release APK because release signing was not configured."
-            cp app/build/outputs/apk/release/app-release-unsigned.apk android-apk/YataiDON-Android-unsigned.apk
-            echo "artifact_name=YataiDON-Android-unsigned.apk" >> "$GITHUB_OUTPUT"
           else
-            echo "::error::No Android release APK was produced."
+            echo "::error::No signed Android release APK was produced."
             find app/build/outputs/apk -type f -maxdepth 5 || true
             exit 1
           fi
