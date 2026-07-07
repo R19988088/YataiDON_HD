@@ -40,7 +40,8 @@ borderless_key = 'f10'
 exit_key = 'Q'
 fullscreen_key = 'f11'
 pause_key = 'space'
-restart_key = 'f1'
+restart_key = 'f5'
+settings_key = 'f1'
 
 [keys_1p]
 left_don = [ 'F' ]

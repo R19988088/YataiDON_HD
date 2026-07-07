@@ -20,7 +20,7 @@ BaseOptionBox::BaseOptionBox(const std::string& name,
                              const std::string& description,
                              const std::string& path)
     : description_text(description)
-    , config_ref(get_config_ref(path))
+    , config_ref(path.empty() ? ConfigRef() : get_config_ref(path))
     , name_text(std::make_unique<OutlinedText>(name, OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
     , is_highlighted(false)
 {}
@@ -513,4 +513,28 @@ void AudioOffsetOptionBox::draw() {
         float ty = btn->y[1] + (btn->height / 2.0f) - (calibrate_text->height / 2.0f);
         calibrate_text->draw({.x=tx, .y=ty});
     }
+}
+
+ScreenOptionBox::ScreenOptionBox(const std::string& name,
+                                 const std::string& description,
+                                 Screens target_screen)
+    : BaseOptionBox(name, description, "")
+    , target_screen(target_screen)
+    , open_text(std::make_unique<OutlinedText>("Open", OPTION_FONT_SIZE, ray::WHITE, ray::BLACK, false, 4, -4))
+{}
+
+void ScreenOptionBox::confirm() {
+    wants_screen_change = true;
+    pending_screen = target_screen;
+    is_highlighted = false;
+}
+
+void ScreenOptionBox::draw() {
+    draw_base();
+
+    tex.draw_texture(OPTION::BUTTON_OFF, {.index=2});
+    auto& btn = tex.textures[OPTION::BUTTON_ON];
+    float tx = btn->x[2] + (btn->width  / 2.0f) - (open_text->width  / 2.0f);
+    float ty = btn->y[2] + (btn->height / 2.0f) - (open_text->height / 2.0f);
+    open_text->draw({.x=tx, .y=ty});
 }

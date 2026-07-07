@@ -37,6 +37,7 @@ struct KeysConfig {
     int exit_key;
     int fullscreen_key;
     int borderless_key;
+    int settings_key;
     int pause_key;
     int back_key;
     int restart_key;

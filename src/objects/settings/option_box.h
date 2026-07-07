@@ -157,3 +157,20 @@ private:
 
     void rebuild_text();
 };
+
+class ScreenOptionBox : public BaseOptionBox {
+public:
+    ScreenOptionBox(const std::string& name,
+                    const std::string& description,
+                    Screens           target_screen);
+
+    void confirm() override;
+    void draw()    override;
+
+    bool    wants_screen_change = false;
+    Screens pending_screen      = Screens::SETTINGS;
+
+private:
+    Screens target_screen;
+    std::unique_ptr<OutlinedText> open_text;
+};

@@ -161,6 +161,12 @@ struct LoopState {
 static LoopState* g_loop = nullptr;
 double g_frame_ms = 0.0;
 
+static bool can_open_settings_from(Screens screen) {
+    return screen != Screens::SETTINGS
+        && screen != Screens::INPUT_CALI
+        && screen != Screens::SKIN_VIEWER;
+}
+
 static void run_frame() {
     LoopState& L = *g_loop;
 
@@ -197,7 +203,12 @@ static void run_frame() {
 
     Screen* screen = L.screens[L.current_screen].get();
 
-    std::optional<Screens> next_screen = screen->update();
+    std::optional<Screens> next_screen;
+    if (can_open_settings_from(L.current_screen) && check_key_pressed(global_data.config->keys.settings_key)) {
+        next_screen = screen->on_screen_end(Screens::SETTINGS);
+    } else {
+        next_screen = screen->update();
+    }
 
     if (screen->screen_init) {
         screen->_do_draw();

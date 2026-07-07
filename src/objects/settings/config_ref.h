@@ -5,8 +5,9 @@
 #include <variant>
 
 struct ConfigRef {
-    std::variant<bool*, int*, float*, std::string*, std::vector<int>*> ptr;
+    std::variant<std::monostate, bool*, int*, float*, std::string*, std::vector<int>*> ptr;
 
+    ConfigRef()                  : ptr(std::monostate{}) {}
     ConfigRef(bool* p)              : ptr(p) {}
     ConfigRef(int* p)               : ptr(p) {}
     ConfigRef(float* p)             : ptr(p) {}
@@ -25,6 +26,7 @@ struct ConfigRef {
     void set_str(const std::string& v)      { *std::get<std::string*>(ptr) = v; }
     void set_vec(const std::vector<int>& v) { *std::get<std::vector<int>*>(ptr) = v; }
 
+    bool is_empty() const { return std::holds_alternative<std::monostate>(ptr); }
     bool is_bool()  const { return std::holds_alternative<bool*>(ptr); }
     bool is_int()   const { return std::holds_alternative<int*>(ptr); }
     bool is_float() const { return std::holds_alternative<float*>(ptr); }
@@ -67,6 +69,7 @@ inline ConfigRef get_config_ref(const std::string& path) {
     if (path == "keys/exit_key")         return &c->keys.exit_key;
     if (path == "keys/fullscreen_key")   return &c->keys.fullscreen_key;
     if (path == "keys/borderless_key")   return &c->keys.borderless_key;
+    if (path == "keys/settings_key")     return &c->keys.settings_key;
     if (path == "keys/pause_key")        return &c->keys.pause_key;
     if (path == "keys/back_key")         return &c->keys.back_key;
     if (path == "keys/restart_key")      return &c->keys.restart_key;

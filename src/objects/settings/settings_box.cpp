@@ -25,6 +25,14 @@ std::unique_ptr<BaseOptionBox> SettingsBox::make_option_box(const rapidjson::Val
     if (type == "audiooffset") {
         return std::make_unique<AudioOffsetOptionBox>(name, desc, path, Screens::INPUT_CALI);
     }
+    if (type == "screen") {
+        std::string screen = opt.HasMember("screen") && opt["screen"].IsString()
+            ? opt["screen"].GetString()
+            : "";
+        if (screen == "skin_viewer")
+            return std::make_unique<ScreenOptionBox>(name, desc, Screens::SKIN_VIEWER);
+        throw std::runtime_error("Unknown settings screen: " + screen);
+    }
     if (type == "bool") {
         std::string true_label  = values_map.count("true")  ? values_map["true"]  : "Enabled";
         std::string false_label = values_map.count("false") ? values_map["false"] : "Disabled";
@@ -154,6 +162,11 @@ std::optional<Screens> SettingsBox::pending_screen_change() const {
         if (ao && ao->wants_screen_change) {
             ao->wants_screen_change = false;
             return ao->pending_screen;
+        }
+        auto* so = dynamic_cast<ScreenOptionBox*>(opt.get());
+        if (so && so->wants_screen_change) {
+            so->wants_screen_change = false;
+            return so->pending_screen;
         }
     }
     return std::nullopt;

@@ -56,9 +56,10 @@ public class SDLDummyEdit extends View implements View.OnKeyListener
     public InputConnection onCreateInputConnection(EditorInfo outAttrs) {
         ic = new SDLInputConnection(this, true);
 
-        outAttrs.inputType = input_type;
+        outAttrs.inputType = input_type | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
         outAttrs.imeOptions = EditorInfo.IME_FLAG_NO_EXTRACT_UI |
-                              EditorInfo.IME_FLAG_NO_FULLSCREEN /* API 11 */;
+                              EditorInfo.IME_FLAG_NO_FULLSCREEN /* API 11 */ |
+                              EditorInfo.IME_FLAG_FORCE_ASCII;
 
         return ic;
     }

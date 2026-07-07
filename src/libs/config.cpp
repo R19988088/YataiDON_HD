@@ -233,9 +233,10 @@ Config get_config() {
         config.keys.exit_key = getKeyCode((*keys)["exit_key"].value_or("escape"));
         config.keys.fullscreen_key = getKeyCode((*keys)["fullscreen_key"].value_or("f11"));
         config.keys.borderless_key = getKeyCode((*keys)["borderless_key"].value_or("f10"));
+        config.keys.settings_key = getKeyCode((*keys)["settings_key"].value_or("f1"));
         config.keys.pause_key = getKeyCode((*keys)["pause_key"].value_or("p"));
         config.keys.back_key = getKeyCode((*keys)["back_key"].value_or("escape"));
-        config.keys.restart_key = getKeyCode((*keys)["restart_key"].value_or("r"));
+        config.keys.restart_key = getKeyCode((*keys)["restart_key"].value_or("f5"));
     }
 
     // Parse keys_1p
@@ -372,6 +373,7 @@ void save_config(const Config& config) {
         {"exit_key", getKeyString(config.keys.exit_key)},
         {"fullscreen_key", getKeyString(config.keys.fullscreen_key)},
         {"borderless_key", getKeyString(config.keys.borderless_key)},
+        {"settings_key", getKeyString(config.keys.settings_key)},
         {"pause_key", getKeyString(config.keys.pause_key)},
         {"back_key", getKeyString(config.keys.back_key)},
         {"restart_key", getKeyString(config.keys.restart_key)}
