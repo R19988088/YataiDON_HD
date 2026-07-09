@@ -151,6 +151,11 @@ void set_working_directory_to_executable() {
         return;
     }
     std::filesystem::path exe_dir = std::filesystem::path(resolved).parent_path();
+    if (exe_dir.filename() == "MacOS" && exe_dir.parent_path().filename() == "Contents") {
+        std::filesystem::path resources_dir = exe_dir.parent_path() / "Resources";
+        if (std::filesystem::exists(resources_dir))
+            exe_dir = resources_dir;
+    }
     std::filesystem::current_path(exe_dir);
     spdlog::info("Working directory set to: {}", exe_dir.string());
 #else

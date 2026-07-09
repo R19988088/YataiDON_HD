@@ -306,36 +306,61 @@ jobs:
       - name: Prepare release package
         run: |
           mkdir -p release/YataiDON-macOS
-          cp build/bin/YataiDON release/YataiDON-macOS/
-          cp -r Skins release/YataiDON-macOS/
-          cp -r shader release/YataiDON-macOS/
-          cp -r Songs release/YataiDON-macOS/
-          cp config.toml release/YataiDON-macOS/
-          cp FZPangWaUltra-Regular.ttf release/YataiDON-macOS/
-          cp update.sh release/YataiDON-macOS/
-          chmod +x release/YataiDON-macOS/YataiDON release/YataiDON-macOS/update.sh
+          APP=release/YataiDON-macOS/YataiDON.app
+          mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+          cp build/bin/YataiDON "$APP/Contents/MacOS/"
+          cp -r Skins "$APP/Contents/Resources/"
+          cp -r shader "$APP/Contents/Resources/"
+          cp -r Songs "$APP/Contents/Resources/"
+          cp config.toml "$APP/Contents/Resources/"
+          cp FZPangWaUltra-Regular.ttf "$APP/Contents/Resources/"
+          cp update.sh "$APP/Contents/Resources/"
+          chmod +x "$APP/Contents/MacOS/YataiDON" "$APP/Contents/Resources/update.sh"
+          cat > "$APP/Contents/Info.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>CFBundleExecutable</key>
+            <string>YataiDON</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.yataidon.app</string>
+            <key>CFBundleName</key>
+            <string>YataiDON</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>1.0</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>NSHighResolutionCapable</key>
+            <false/>
+          </dict>
+          </plist>
+          PLIST
 
           # Bundle non-system dylib dependencies
-          mkdir -p release/YataiDON-macOS/lib
+          mkdir -p "$APP/Contents/MacOS/lib"
           dylibbundler -od -b \
-            -x release/YataiDON-macOS/YataiDON \
-            -d release/YataiDON-macOS/lib \
+            -x "$APP/Contents/MacOS/YataiDON" \
+            -d "$APP/Contents/MacOS/lib" \
             -p @executable_path/lib
 
           # dylibbundler can add the same rpath CMake already emitted; dyld
           # aborts on duplicate LC_RPATH entries before the game can start.
-          while [ "$(otool -l release/YataiDON-macOS/YataiDON | grep -c 'path @executable_path/lib/')" -gt 1 ]; do
-            install_name_tool -delete_rpath @executable_path/lib/ release/YataiDON-macOS/YataiDON
+          while [ "$(otool -l "$APP/Contents/MacOS/YataiDON" | grep -c 'path @executable_path/lib/')" -gt 1 ]; do
+            install_name_tool -delete_rpath @executable_path/lib/ "$APP/Contents/MacOS/YataiDON"
           done
-          codesign --force --sign - release/YataiDON-macOS/YataiDON
-          test "$(otool -l release/YataiDON-macOS/YataiDON | grep -c 'path @executable_path/lib/')" -eq 1
+          codesign --force --deep --sign - "$APP"
+          test "$(otool -l "$APP/Contents/MacOS/YataiDON" | grep -c 'path @executable_path/lib/')" -eq 1
 
           # Checksums — binary + updater + shader + lib
           (
             cd release/YataiDON-macOS
-            shasum -a 256 YataiDON update.sh FZPangWaUltra-Regular.ttf
-            find shader -type f | sort | xargs shasum -a 256
-            [ -d lib ] && find lib -type f | sort | xargs shasum -a 256 || true
+            shasum -a 256 YataiDON.app/Contents/MacOS/YataiDON
+            shasum -a 256 YataiDON.app/Contents/Resources/update.sh YataiDON.app/Contents/Resources/FZPangWaUltra-Regular.ttf
+            find YataiDON.app/Contents/Resources/shader -type f | sort | xargs shasum -a 256
+            find YataiDON.app/Contents/MacOS/lib -type f | sort | xargs shasum -a 256
           ) > release/YataiDON-macOS/checksums-macos.sha256
 
           hdiutil create \

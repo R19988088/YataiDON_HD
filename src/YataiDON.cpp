@@ -1,4 +1,7 @@
 #include <iostream>
+#include <algorithm>
+#include <cmath>
+#include <utility>
 #include <rlgl.h>
 #ifdef PLATFORM_ANDROID
 #include <SDL3/SDL_main.h>
@@ -167,6 +170,17 @@ static bool can_open_settings_from(Screens screen) {
         && screen != Screens::SKIN_VIEWER;
 }
 
+static std::pair<int, int> startup_resolution(int width, int height) {
+#ifdef __APPLE__
+    constexpr int max_width = 1080;
+    if (width > max_width && height > 0) {
+        height = std::max(1, static_cast<int>(std::lround((float)height * max_width / width)));
+        width = max_width;
+    }
+#endif
+    return {width, height};
+}
+
 static void run_frame() {
     LoopState& L = *g_loop;
 
@@ -280,8 +294,9 @@ int main(int argc, char* argv[]) {
 
     fs::path root_skin_path = fs::path("Skins") / global_data.config->paths.skin;
 
-    tex.set_target_resolution(global_data.config->video.width, global_data.config->video.height);
-    global_tex.set_target_resolution(global_data.config->video.width, global_data.config->video.height);
+    auto [startup_width, startup_height] = startup_resolution(global_data.config->video.width, global_data.config->video.height);
+    tex.set_target_resolution(startup_width, startup_height);
+    global_tex.set_target_resolution(startup_width, startup_height);
     tex.init(root_skin_path / "Graphics");
 
 #ifdef PLATFORM_ANDROID
