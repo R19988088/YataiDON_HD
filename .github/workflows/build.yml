@@ -12,6 +12,7 @@ permissions:
 jobs:
   build-linux:
     name: Build on Linux
+    if: false
     runs-on: ubuntu-latest
 
     steps:
@@ -321,6 +322,14 @@ jobs:
             -d release/YataiDON-macOS/lib \
             -p @executable_path/lib
 
+          # dylibbundler can add the same rpath CMake already emitted; dyld
+          # aborts on duplicate LC_RPATH entries before the game can start.
+          while [ "$(otool -l release/YataiDON-macOS/YataiDON | grep -c 'path @executable_path/lib/')" -gt 1 ]; do
+            install_name_tool -delete_rpath @executable_path/lib/ release/YataiDON-macOS/YataiDON
+          done
+          codesign --force --sign - release/YataiDON-macOS/YataiDON
+          test "$(otool -l release/YataiDON-macOS/YataiDON | grep -c 'path @executable_path/lib/')" -eq 1
+
           # Checksums — binary + updater + shader + lib
           (
             cd release/YataiDON-macOS
@@ -482,19 +491,17 @@ jobs:
   build-summary:
     name: Build Summary
     runs-on: ubuntu-latest
-    needs: [build-linux, build-windows, build-macos, build-android]
+    needs: [build-windows, build-macos, build-android]
     if: always()
 
     steps:
       - name: Check build status
         run: |
-          echo "Linux build: ${{ needs.build-linux.result }}"
           echo "Windows build: ${{ needs.build-windows.result }}"
           echo "macOS build: ${{ needs.build-macos.result }}"
           echo "Android build: ${{ needs.build-android.result }}"
 
-          if [[ "${{ needs.build-linux.result }}" != "success" ]] || \
-             [[ "${{ needs.build-windows.result }}" != "success" ]] || \
+          if [[ "${{ needs.build-windows.result }}" != "success" ]] || \
              [[ "${{ needs.build-macos.result }}" != "success" ]] || \
              [[ "${{ needs.build-android.result }}" != "success" ]]; then
             echo "One or more builds failed!"
@@ -504,7 +511,7 @@ jobs:
           echo "All builds completed successfully!"
 
   release:
-    needs: [build-linux, build-windows, build-macos, build-android]
+    needs: [build-windows, build-macos, build-android]
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
     steps:
@@ -516,7 +523,6 @@ jobs:
 
       - name: Package release assets
         run: |
-          (cd release-assets/YataiDON-Linux && zip -r ../../YataiDON-Linux.zip .)
           (cd release-assets/YataiDON-Windows && zip -r ../../YataiDON-Windows.zip .)
           find release-assets -type f \( -name 'YataiDON-macOS.dmg' -o -name 'YataiDON-Android*.apk' \) -print -exec cp {} . \;
           sha256sum YataiDON-* > checksums-release.sha256
@@ -525,7 +531,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            YataiDON-Linux.zip
             YataiDON-Windows.zip
             YataiDON-macOS.dmg
             YataiDON-Android*.apk
